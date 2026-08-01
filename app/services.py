@@ -117,16 +117,38 @@ def sorted_group(registrations: list[Registration]) -> list[Registration]:
     )
 
 def generate_groups(db: Session, tournament: Tournament):
+    if tournament.group_size < 2:
+        raise ValueError("O tamanho do grupo precisa ser pelo menos 2.")
+
     approved = db.scalars(select(Registration).where(
         Registration.tournament_id == tournament.id,
         Registration.status == "approved",
     )).all()
     if len(approved) < tournament.group_size:
-        raise ValueError(f"São necessárias pelo menos {tournament.group_size} inscrições aprovadas.")
+        raise ValueError(
+            f"São necessárias pelo menos {tournament.group_size} inscrições aprovadas; atualmente há {len(approved)}."
+        )
+
+    # Recria o sorteio sem apagar inscrições.
     db.query(Match).filter(Match.tournament_id == tournament.id).delete()
+    for registration in approved:
+        registration.group_name = None
+        registration.points = registration.played = registration.wins = 0
+        registration.draws = registration.losses = 0
+        registration.goals_for = registration.goals_against = 0
+
     random.shuffle(approved)
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    groups = [approved[i:i+tournament.group_size] for i in range(0, len(approved), tournament.group_size)]
+    groups = [
+        approved[index:index + tournament.group_size]
+        for index in range(0, len(approved), tournament.group_size)
+    ]
+
+    # Não permite um último grupo com apenas uma pessoa.
+    if len(groups) > 1 and len(groups[-1]) == 1:
+        moved = groups[-2].pop()
+        groups[-1].insert(0, moved)
+
     for index, group in enumerate(groups):
         group_name = letters[index]
         for registration in group:
@@ -141,9 +163,11 @@ def generate_groups(db: Session, tournament: Tournament):
                 home_registration_id=home.id,
                 away_registration_id=away.id,
             ))
+
     tournament.status = "group_stage"
     db.commit()
     return groups
+
 
 def groups_finished(db: Session, tournament_id: int) -> bool:
     matches = db.scalars(select(Match).where(

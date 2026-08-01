@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Jogadores — Administração{% endblock %}
+{% block content %}
+<section class="admin-shell">
+  <aside class="admin-sidebar">
+    <div class="admin-brand"><span class="logo-mark">A</span><div><strong>FC26 Arena</strong><small>Jogadores</small></div></div>
+    <nav><a href="/admin">← Visão geral</a><a class="active" href="/admin/jogadores">👥 Jogadores</a><a href="/admin#campeonatos">🏆 Campeonatos</a><a href="/admin/sair">🚪 Sair</a></nav>
+  </aside>
+  <main class="admin-main">
+    <div class="admin-header"><div><span class="eyebrow">BASE DE JOGADORES</span><h1>Gerenciar jogadores</h1><p class="muted">Edite perfil, plataforma, geração e acesso.</p></div></div>
+    {% if message %}<div class="success admin-message">{{ message }}</div>{% endif %}
+    <section class="admin-card">
+      <form class="admin-filter" method="get">
+        <input name="q" value="{{ q }}" placeholder="Buscar por nome, EA ID, WhatsApp ou e-mail">
+        <select name="generation"><option value="todas" {% if generation == 'todas' %}selected{% endif %}>Todas as gerações</option><option value="nova" {% if generation == 'nova' %}selected{% endif %}>Nova geração</option><option value="antiga" {% if generation == 'antiga' %}selected{% endif %}>Antiga geração</option></select>
+        <button class="btn btn-primary">Buscar</button>
+      </form>
+    </section>
+
+    <section class="admin-card">
+      <div class="admin-table-wrap">
+        <table class="admin-table player-table">
+          <thead><tr><th>Jogador</th><th>Contato</th><th>Conta EA</th><th>Plataforma</th><th>Inscrições</th><th>Status</th><th>Ação</th></tr></thead>
+          <tbody>
+          {% for user in users %}
+            <tr>
+              <td><strong>{{ user.name }}</strong><small>#{{ user.id }} · Nível {{ user.level }} · {{ user.xp }} XP</small></td>
+              <td>{{ user.whatsapp }}<small>{{ user.email or 'Sem e-mail' }}</small></td>
+              <td>{{ user.ea_id }}</td>
+              <td>{{ user.platform }}<small>{{ 'Nova geração' if user.generation == 'nova' else 'Antiga geração' }}</small></td>
+              <td>{{ registration_totals[user.id] }}</td>
+              <td><span class="status {{ 'status-approved' if user.active else 'status-cancelled' }}">{{ 'Ativo' if user.active else 'Bloqueado' }}</span></td>
+              <td><button class="btn btn-small" type="button" onclick="document.getElementById('edit-user-{{ user.id }}').showModal()">Editar</button></td>
+            </tr>
+            <dialog id="edit-user-{{ user.id }}" class="admin-dialog">
+              <form method="post" action="/admin/jogador/{{ user.id }}/editar">
+                <button class="dialog-close" type="button" onclick="this.closest('dialog').close()">×</button>
+                <h2>Editar {{ user.name }}</h2>
+                <div class="field"><label>Nome</label><input name="name" value="{{ user.name }}" required></div>
+                <div class="grid-2"><div class="field"><label>WhatsApp</label><input name="whatsapp" value="{{ user.whatsapp }}" required></div><div class="field"><label>E-mail</label><input type="email" name="email" value="{{ user.email or '' }}"></div></div>
+                <div class="field"><label>ID EA</label><input name="ea_id" value="{{ user.ea_id }}" required></div>
+                <div class="grid-2"><div class="field"><label>Geração</label><select name="generation"><option value="nova" {% if user.generation == 'nova' %}selected{% endif %}>Nova geração</option><option value="antiga" {% if user.generation == 'antiga' %}selected{% endif %}>Antiga geração</option></select></div><div class="field"><label>Plataforma</label><select name="platform">{% for generation_name, options in platforms.items() %}{% for platform in options %}<option value="{{ platform }}" {% if user.platform == platform %}selected{% endif %}>{{ platform }}</option>{% endfor %}{% endfor %}</select></div></div>
+                <label class="admin-check"><input type="checkbox" name="active" value="1" {% if user.active %}checked{% endif %}> Jogador ativo</label>
+                <button class="btn btn-primary" style="width:100%">Salvar jogador</button>
+              </form>
+            </dialog>
+          {% else %}
+            <tr><td colspan="7">Nenhum jogador encontrado.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</section>
+{% endblock %}

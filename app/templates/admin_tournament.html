@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Gerenciar {{ tournament.name }}{% endblock %}
+{% block content %}
+<section class="admin-shell">
+  <aside class="admin-sidebar">
+    <div class="admin-brand"><span class="logo-mark">A</span><div><strong>FC26 Arena</strong><small>Gerenciar campeonato</small></div></div>
+    <nav><a href="/admin">← Visão geral</a><a class="active" href="#resumo">🏆 Campeonato</a><a href="#inscricoes">👥 Inscrições</a><a href="#partidas">🎮 Partidas</a><a href="/admin/jogadores">🧑 Jogadores</a><a href="/admin/sair">🚪 Sair</a></nav>
+  </aside>
+  <main class="admin-main">
+    <div class="admin-header">
+      <div><span class="eyebrow">{{ tournament.mode }} · {{ 'NOVA GERAÇÃO' if tournament.generation == 'nova' else 'ANTIGA GERAÇÃO' }}</span><h1>{{ tournament.name }}</h1><p class="muted">Edite as configurações, controle inscritos e execute o sorteio.</p></div>
+      <a class="btn" href="/campeonato/{{ tournament.slug }}" target="_blank">Ver página pública ↗</a>
+    </div>
+    {% if message %}<div class="success admin-message">{{ message }}</div>{% endif %}
+
+    <div class="admin-kpis">
+      <div class="admin-kpi"><span>📝</span><div><strong>{{ counts.total }}</strong><small>Inscrições</small></div></div>
+      <div class="admin-kpi"><span>✅</span><div><strong>{{ counts.approved }}</strong><small>Aprovadas</small></div></div>
+      <div class="admin-kpi"><span>⏳</span><div><strong>{{ counts.pending }}</strong><small>Pendentes</small></div></div>
+      <div class="admin-kpi"><span>🎯</span><div><strong>{{ tournament.group_size }}</strong><small>Por grupo</small></div></div>
+    </div>
+
+    <section id="resumo" class="admin-card">
+      <div class="admin-section-head"><div><h2>Editar campeonato</h2><p>As alterações são aplicadas sem apagar os inscritos.</p></div></div>
+      <form class="admin-form-grid" method="post" action="/admin/campeonato/{{ tournament.id }}/editar">
+        <div class="field span-2"><label>Nome</label><input name="name" value="{{ tournament.name }}" required></div>
+        <div class="field"><label>Modalidade</label><select name="mode">{% for option in ['1x1','2x2','Pro Clubs'] %}<option {% if tournament.mode == option %}selected{% endif %}>{{ option }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Geração</label><select name="generation"><option value="nova" {% if tournament.generation == 'nova' %}selected{% endif %}>Nova geração</option><option value="antiga" {% if tournament.generation == 'antiga' %}selected{% endif %}>Antiga geração</option></select></div>
+        <div class="field"><label>Vagas</label><input type="number" min="2" name="max_entries" value="{{ tournament.max_entries }}"></div>
+        <div class="field"><label>Participantes por grupo</label><input type="number" min="2" name="group_size" value="{{ tournament.group_size }}"></div>
+        <div class="field"><label>Taxa</label><input type="number" min="0" step="0.01" name="registration_fee" value="{{ tournament.registration_fee }}"></div>
+        <div class="field"><label>Prêmio</label><input type="number" min="0" step="0.01" name="prize" value="{{ tournament.prize }}"></div>
+        <div class="field"><label>Data e horário</label><input name="starts_at" value="{{ tournament.starts_at }}"></div>
+        <div class="field"><label>Tema</label><select name="color_theme">{% for option in ['green','purple','cyan','orange'] %}<option value="{{ option }}" {% if tournament.color_theme == option %}selected{% endif %}>{{ option }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Status</label><select name="status">{% for option in ['draft','open','closed','group_stage','knockout','completed','archived'] %}<option value="{{ option }}" {% if tournament.status == option %}selected{% endif %}>{{ option }}</option>{% endfor %}</select></div>
+        <div class="field span-2"><label>Regulamento</label><textarea name="rules">{{ tournament.rules }}</textarea></div>
+        <div class="span-2"><button class="btn btn-primary">Salvar alterações</button></div>
+      </form>
+    </section>
+
+    <section class="admin-card draw-card">
+      <div>
+        <h2>🎲 Sorteio dos grupos</h2>
+        <p>Há <strong>{{ counts.approved }}</strong> inscrição(ões) aprovada(s). O mínimo atual é <strong>{{ tournament.group_size }}</strong>.</p>
+        {% if not can_draw %}<div class="admin-warning">Aprove mais jogadores antes de sortear.</div>{% endif %}
+      </div>
+      <div class="admin-actions">
+        <form method="post" action="/admin/campeonato/{{ tournament.id }}/sortear" onsubmit="return confirm('O sorteio apagará partidas existentes deste campeonato e criará novas. Continuar?')"><button class="btn btn-primary" {% if not can_draw %}disabled{% endif %}>🎲 Sortear grupos e partidas</button></form>
+        <form method="post" action="/admin/campeonato/{{ tournament.id }}/limpar-sorteio" onsubmit="return confirm('Apagar todos os grupos e partidas, mantendo as inscrições?')"><button class="btn btn-danger">Limpar sorteio</button></form>
+      </div>
+    </section>
+
+    <section id="inscricoes" class="admin-card">
+      <div class="admin-section-head"><div><h2>Gerenciar inscrições</h2><p>Aprove, rejeite, cancele ou adicione jogadores manualmente.</p></div></div>
+
+      {% if tournament.mode == '1x1' %}
+      <form class="admin-inline-form admin-add-player" method="post" action="/admin/campeonato/{{ tournament.id }}/adicionar-jogador">
+        <select name="user_id" required><option value="">Selecionar jogador ativo</option>{% for user in available_users %}<option value="{{ user.id }}">{{ user.name }} · {{ user.ea_id }} · {{ user.platform }}</option>{% endfor %}</select>
+        <select name="status"><option value="approved">Adicionar aprovado</option><option value="pending">Adicionar pendente</option></select>
+        <button class="btn btn-primary">＋ Adicionar jogador</button>
+      </form>
+      {% endif %}
+
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>#</th><th>Participante</th><th>Contato / ID EA</th><th>Grupo</th><th>Pagamento</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody>
+          {% for r in registrations %}
+            <tr>
+              <td>{{ r.id }}</td>
+              <td><strong>{{ registration_label(r) }}</strong><small>{{ r.team.mode if r.team else r.user.platform }}</small></td>
+              <td>{% if r.user %}{{ r.user.whatsapp }}<small>{{ r.user.ea_id }}</small>{% else %}<span class="muted">Inscrição de equipe</span>{% endif %}</td>
+              <td>{{ r.group_name or '—' }}</td>
+              <td><span class="status status-{{ r.payment_status }}">{{ r.payment_status }}</span></td>
+              <td><span class="status status-{{ r.status }}">{{ r.status }}</span></td>
+              <td class="admin-actions">
+                <form method="post" action="/admin/campeonato/{{ tournament.id }}/inscricao/{{ r.id }}/status">
+                  {% if r.status != 'approved' %}<button class="btn btn-small btn-primary" name="action" value="approve">Aprovar</button>{% endif %}
+                  {% if r.status == 'approved' %}<button class="btn btn-small" name="action" value="pending">Pendente</button>{% endif %}
+                  <button class="btn btn-small btn-danger" name="action" value="cancel">Cancelar</button>
+                </form>
+                <form method="post" action="/admin/campeonato/{{ tournament.id }}/inscricao/{{ r.id }}/remover" onsubmit="return confirm('Excluir definitivamente esta inscrição?')"><button class="btn btn-small btn-ghost-danger">Excluir</button></form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7">Nenhuma inscrição.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="partidas" class="admin-card">
+      <div class="admin-section-head"><div><h2>Partidas</h2><p>Edite horários, placares e o status de cada confronto.</p></div></div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Fase</th><th>Confronto</th><th>Grupo</th><th>Data</th><th>Placar</th><th>Status</th><th>Ação</th></tr></thead>
+          <tbody>
+          {% for m in matches %}
+            <tr>
+              <td>{{ m.round_name }}</td>
+              <td><strong>{{ registration_label(m.home) }}</strong><small>x {{ registration_label(m.away) }}</small></td>
+              <td>{{ m.group_name or '—' }}</td>
+              <td><input form="match-form-{{ m.id }}" class="table-input" name="scheduled_for" value="{{ m.scheduled_for }}"></td>
+              <td><div class="score-inputs"><input form="match-form-{{ m.id }}" type="number" min="0" name="home_score" value="{{ m.home_score if m.home_score is not none else '' }}">×<input form="match-form-{{ m.id }}" type="number" min="0" name="away_score" value="{{ m.away_score if m.away_score is not none else '' }}"></div></td>
+              <td><select form="match-form-{{ m.id }}" class="table-select" name="status">{% for option in ['scheduled','awaiting_confirmation','completed','disputed','cancelled'] %}<option value="{{ option }}" {% if m.status == option %}selected{% endif %}>{{ option }}</option>{% endfor %}</select></td>
+              <td><form id="match-form-{{ m.id }}" method="post" action="/admin/partida/{{ m.id }}/editar"><button class="btn btn-small">Salvar</button></form></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7">Nenhuma partida gerada.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</section>
+{% endblock %}

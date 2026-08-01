@@ -3,6 +3,7 @@ import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
@@ -95,6 +96,29 @@ def require_user(request: Request, db: Session) -> User:
 def require_admin(request: Request):
     if not request.session.get("admin"):
         raise HTTPException(403)
+
+
+def admin_redirect(message: str, location: str = "/admin") -> RedirectResponse:
+    separator = "&" if "?" in location else "?"
+    return RedirectResponse(f"{location}{separator}message={quote(str(message))}", 303)
+
+def registration_label(registration: Registration) -> str:
+    if registration.team:
+        return registration.team.name
+    if registration.user:
+        return registration.user.name
+    return f"Inscrição #{registration.id}"
+
+def tournament_registration_counts(db: Session, tournament_id: int) -> dict[str, int]:
+    registrations = db.scalars(
+        select(Registration).where(Registration.tournament_id == tournament_id)
+    ).all()
+    return {
+        "total": len(registrations),
+        "approved": sum(1 for item in registrations if item.status == "approved"),
+        "pending": sum(1 for item in registrations if item.status == "pending"),
+        "rejected": sum(1 for item in registrations if item.status in {"rejected", "cancelled"}),
+    }
 
 def registration_contains_user(db: Session, registration: Registration, user: User) -> bool:
     if registration.user_id == user.id:
@@ -596,20 +620,386 @@ def admin_logout(request: Request):
     request.session.pop("admin", None)
     return RedirectResponse("/", 303)
 
+
 @app.get("/admin", response_class=HTMLResponse)
 def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     require_admin(request)
     tournaments = db.scalars(select(Tournament).order_by(Tournament.id.desc())).all()
+    users = db.scalars(select(User).order_by(User.id.desc())).all()
+    registrations = db.scalars(select(Registration).order_by(Registration.id.desc())).all()
     payments = db.scalars(select(Payment).order_by(Payment.id.desc()).limit(20)).all()
     reports = db.scalars(select(Report).order_by(Report.id.desc()).limit(20)).all()
     tickets = db.scalars(select(SupportTicket).order_by(SupportTicket.id.desc()).limit(20)).all()
     coupons = db.scalars(select(Coupon).order_by(Coupon.id.desc())).all()
     audits = db.scalars(select(AuditLog).order_by(AuditLog.id.desc()).limit(20)).all()
+
+    tournament_rows = []
+    for tournament in tournaments:
+        counts = tournament_registration_counts(db, tournament.id)
+        match_count = db.scalar(
+            select(func.count()).select_from(Match).where(Match.tournament_id == tournament.id)
+        )
+        tournament_rows.append({
+            "tournament": tournament,
+            "counts": counts,
+            "matches": match_count,
+            "can_draw": counts["approved"] >= max(2, tournament.group_size),
+        })
+
+    stats = {
+        "users": len(users),
+        "active_users": sum(1 for user in users if user.active),
+        "tournaments": len(tournaments),
+        "open_tournaments": sum(1 for item in tournaments if item.status == "open"),
+        "registrations": len(registrations),
+        "pending_registrations": sum(1 for item in registrations if item.status == "pending"),
+        "pending_payments": sum(1 for item in payments if item.status == "pending"),
+        "open_reports": sum(1 for item in reports if item.status == "open"),
+    }
+
     return templates.TemplateResponse("admin.html", ctx(
-        request, tournaments=tournaments, payments=payments, reports=reports,
-        tickets=tickets, coupons=coupons, audits=audits,
+        request,
+        tournament_rows=tournament_rows,
+        payments=payments,
+        reports=reports,
+        tickets=tickets,
+        coupons=coupons,
+        audits=audits,
+        stats=stats,
         message=request.query_params.get("message"),
     ))
+
+@app.get("/admin/jogadores", response_class=HTMLResponse)
+def admin_players(
+    request: Request,
+    q: str = "",
+    generation: str = "todas",
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    query = select(User)
+    if generation in PLATFORMS:
+        query = query.where(User.generation == generation)
+    users = db.scalars(query.order_by(User.id.desc())).all()
+    term = q.strip().lower()
+    if term:
+        users = [
+            user for user in users
+            if term in user.name.lower()
+            or term in user.ea_id.lower()
+            or term in user.whatsapp.lower()
+            or (user.email and term in user.email.lower())
+        ]
+    registration_totals = {
+        user.id: db.scalar(
+            select(func.count()).select_from(Registration).where(Registration.user_id == user.id)
+        )
+        for user in users
+    }
+    return templates.TemplateResponse("admin_players.html", ctx(
+        request,
+        users=users,
+        registration_totals=registration_totals,
+        q=q,
+        generation=generation,
+        message=request.query_params.get("message"),
+    ))
+
+@app.post("/admin/jogador/{user_id}/editar")
+def admin_edit_player(
+    user_id: int,
+    request: Request,
+    name: Annotated[str, Form()],
+    whatsapp: Annotated[str, Form()],
+    email: Annotated[str | None, Form()] = None,
+    ea_id: Annotated[str, Form()] = "",
+    generation: Annotated[str, Form()] = "nova",
+    platform: Annotated[str, Form()] = "",
+    active: Annotated[str | None, Form()] = None,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(404)
+    if generation not in PLATFORMS or platform not in PLATFORMS[generation]:
+        return admin_redirect("Geração ou plataforma inválida.", "/admin/jogadores")
+    user.name = name.strip()
+    user.whatsapp = whatsapp.strip()
+    user.email = email.strip().lower() if email else None
+    user.ea_id = ea_id.strip()
+    user.generation = generation
+    user.platform = platform
+    user.active = active == "1"
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return admin_redirect("WhatsApp, e-mail ou ID EA já pertence a outro jogador.", "/admin/jogadores")
+    audit(db, "edit", "user", user.id, user.name)
+    return admin_redirect("Jogador atualizado com sucesso.", "/admin/jogadores")
+
+@app.post("/admin/jogador/{user_id}/status")
+def admin_player_status(
+    user_id: int,
+    request: Request,
+    action: Annotated[str, Form()],
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(404)
+    user.active = action == "activate"
+    db.commit()
+    audit(db, "status", "user", user.id, action)
+    return admin_redirect("Status do jogador atualizado.", "/admin/jogadores")
+
+@app.get("/admin/campeonato/{tournament_id}", response_class=HTMLResponse)
+def admin_tournament_manage(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    tournament = db.get(Tournament, tournament_id)
+    if not tournament:
+        raise HTTPException(404)
+
+    registrations = db.scalars(
+        select(Registration)
+        .where(Registration.tournament_id == tournament.id)
+        .order_by(Registration.id)
+    ).all()
+    matches = db.scalars(
+        select(Match)
+        .where(Match.tournament_id == tournament.id)
+        .order_by(Match.round_order, Match.group_name, Match.id)
+    ).all()
+    users = db.scalars(
+        select(User)
+        .where(User.active == True, User.generation == tournament.generation)
+        .order_by(User.name)
+    ).all()
+    registered_user_ids = {item.user_id for item in registrations if item.user_id}
+    available_users = [user for user in users if user.id not in registered_user_ids]
+    counts = tournament_registration_counts(db, tournament.id)
+
+    return templates.TemplateResponse("admin_tournament.html", ctx(
+        request,
+        tournament=tournament,
+        registrations=registrations,
+        matches=matches,
+        available_users=available_users,
+        counts=counts,
+        can_draw=counts["approved"] >= max(2, tournament.group_size),
+        registration_label=registration_label,
+        message=request.query_params.get("message"),
+    ))
+
+@app.post("/admin/campeonato/{tournament_id}/editar")
+def admin_edit_tournament(
+    tournament_id: int,
+    request: Request,
+    name: Annotated[str, Form()],
+    mode: Annotated[str, Form()],
+    generation: Annotated[str, Form()],
+    max_entries: Annotated[int, Form()],
+    group_size: Annotated[int, Form()],
+    registration_fee: Annotated[float, Form()],
+    prize: Annotated[float, Form()],
+    starts_at: Annotated[str, Form()],
+    color_theme: Annotated[str, Form()],
+    rules: Annotated[str, Form()],
+    status: Annotated[str, Form()],
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    tournament = db.get(Tournament, tournament_id)
+    if not tournament:
+        raise HTTPException(404)
+    if mode not in {"1x1", "2x2", "Pro Clubs"}:
+        return admin_redirect("Modalidade inválida.", f"/admin/campeonato/{tournament_id}")
+    if generation not in PLATFORMS:
+        return admin_redirect("Geração inválida.", f"/admin/campeonato/{tournament_id}")
+    if group_size < 2:
+        return admin_redirect("O grupo precisa ter pelo menos 2 participantes.", f"/admin/campeonato/{tournament_id}")
+    if max_entries < group_size:
+        return admin_redirect("O número de vagas não pode ser menor que o tamanho do grupo.", f"/admin/campeonato/{tournament_id}")
+
+    tournament.name = name.strip()
+    tournament.mode = mode
+    tournament.generation = generation
+    tournament.max_entries = max_entries
+    tournament.group_size = group_size
+    tournament.registration_fee = max(0, registration_fee)
+    tournament.prize = max(0, prize)
+    tournament.starts_at = starts_at.strip() or "A definir"
+    tournament.color_theme = color_theme
+    tournament.rules = rules.strip()
+    tournament.status = status
+    db.commit()
+    audit(db, "edit", "tournament", tournament.id, tournament.name)
+    return admin_redirect("Campeonato atualizado com sucesso.", f"/admin/campeonato/{tournament_id}")
+
+@app.post("/admin/campeonato/{tournament_id}/adicionar-jogador")
+def admin_add_player_to_tournament(
+    tournament_id: int,
+    request: Request,
+    user_id: Annotated[int, Form()],
+    status: Annotated[str, Form()] = "approved",
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    tournament = db.get(Tournament, tournament_id)
+    user = db.get(User, user_id)
+    if not tournament or not user:
+        raise HTTPException(404)
+    if tournament.mode != "1x1":
+        return admin_redirect("Inclusão individual pelo painel está disponível apenas para campeonatos 1x1.", f"/admin/campeonato/{tournament_id}")
+    if user.generation != tournament.generation:
+        return admin_redirect("O jogador pertence a outra geração.", f"/admin/campeonato/{tournament_id}")
+    existing = db.scalar(select(Registration).where(
+        Registration.tournament_id == tournament.id,
+        Registration.user_id == user.id,
+    ))
+    if existing:
+        return admin_redirect("Esse jogador já está inscrito.", f"/admin/campeonato/{tournament_id}")
+    total = db.scalar(
+        select(func.count()).select_from(Registration).where(
+            Registration.tournament_id == tournament.id,
+            Registration.status.in_(["approved", "pending"]),
+        )
+    )
+    if total >= tournament.max_entries:
+        return admin_redirect("As vagas do campeonato estão preenchidas.", f"/admin/campeonato/{tournament_id}")
+    payment_status = "not_required" if float(tournament.registration_fee) == 0 else "approved"
+    db.add(Registration(
+        tournament_id=tournament.id,
+        user_id=user.id,
+        status=status,
+        payment_status=payment_status,
+    ))
+    db.commit()
+    audit(db, "add_registration", "tournament", tournament.id, user.name)
+    return admin_redirect("Jogador adicionado ao campeonato.", f"/admin/campeonato/{tournament_id}")
+
+@app.post("/admin/campeonato/{tournament_id}/inscricao/{registration_id}/status")
+def admin_registration_status(
+    tournament_id: int,
+    registration_id: int,
+    request: Request,
+    action: Annotated[str, Form()],
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    registration = db.get(Registration, registration_id)
+    if not registration or registration.tournament_id != tournament_id:
+        raise HTTPException(404)
+
+    if action == "approve":
+        registration.status = "approved"
+        if float(registration.tournament.registration_fee) == 0:
+            registration.payment_status = "not_required"
+        elif registration.payment_status != "approved":
+            registration.payment_status = "approved"
+    elif action == "pending":
+        registration.status = "pending"
+    elif action == "reject":
+        registration.status = "rejected"
+        registration.payment_status = "rejected"
+    elif action == "cancel":
+        registration.status = "cancelled"
+        registration.group_name = None
+    elif action == "restore":
+        registration.status = "approved"
+    else:
+        return admin_redirect("Ação inválida.", f"/admin/campeonato/{tournament_id}")
+
+    db.commit()
+    audit(db, "registration_status", "registration", registration.id, action)
+    return admin_redirect("Inscrição atualizada.", f"/admin/campeonato/{tournament_id}")
+
+@app.post("/admin/campeonato/{tournament_id}/inscricao/{registration_id}/remover")
+def admin_remove_registration(
+    tournament_id: int,
+    registration_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    registration = db.get(Registration, registration_id)
+    if not registration or registration.tournament_id != tournament_id:
+        raise HTTPException(404)
+    linked_match = db.scalar(select(Match).where(or_(
+        Match.home_registration_id == registration.id,
+        Match.away_registration_id == registration.id,
+    )))
+    if linked_match:
+        return admin_redirect(
+            "Não é possível excluir definitivamente uma inscrição que já possui partida. Use Cancelar.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+    label = registration_label(registration)
+    db.delete(registration)
+    db.commit()
+    audit(db, "delete_registration", "tournament", tournament_id, label)
+    return admin_redirect("Inscrição removida definitivamente.", f"/admin/campeonato/{tournament_id}")
+
+@app.post("/admin/campeonato/{tournament_id}/limpar-sorteio")
+def admin_clear_draw(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    tournament = db.get(Tournament, tournament_id)
+    if not tournament:
+        raise HTTPException(404)
+    db.query(Match).filter(Match.tournament_id == tournament.id).delete()
+    registrations = db.scalars(select(Registration).where(
+        Registration.tournament_id == tournament.id
+    )).all()
+    for registration in registrations:
+        registration.group_name = None
+        registration.points = registration.played = registration.wins = 0
+        registration.draws = registration.losses = 0
+        registration.goals_for = registration.goals_against = 0
+    tournament.status = "open"
+    db.commit()
+    audit(db, "clear_draw", "tournament", tournament.id, tournament.name)
+    return admin_redirect("Sorteio e partidas apagados. As inscrições foram preservadas.", f"/admin/campeonato/{tournament_id}")
+
+@app.post("/admin/partida/{match_id}/editar")
+def admin_edit_match(
+    match_id: int,
+    request: Request,
+    scheduled_for: Annotated[str, Form()],
+    home_score: Annotated[str, Form()] = "",
+    away_score: Annotated[str, Form()] = "",
+    status: Annotated[str, Form()] = "scheduled",
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    match = db.get(Match, match_id)
+    if not match:
+        raise HTTPException(404)
+    match.scheduled_for = scheduled_for.strip() or "A definir"
+    match.status = status
+    parsed_home = int(home_score) if home_score.strip() else None
+    parsed_away = int(away_score) if away_score.strip() else None
+    if parsed_home is not None and parsed_away is not None:
+        if match.phase == "knockout" and parsed_home == parsed_away and status == "completed":
+            return admin_redirect("Partida de mata-mata não pode terminar empatada.", f"/admin/campeonato/{match.tournament_id}")
+        match.home_score = max(0, parsed_home)
+        match.away_score = max(0, parsed_away)
+        if status == "completed":
+            match.result_confirmed = True
+    db.commit()
+    if status == "completed" and match.home_score is not None and match.away_score is not None:
+        process_confirmed_result(db, match)
+    audit(db, "edit_match", "match", match.id, status)
+    return admin_redirect("Partida atualizada.", f"/admin/campeonato/{match.tournament_id}")
 
 @app.post("/admin/campeonatos")
 def admin_create_tournament(
@@ -647,7 +1037,7 @@ def admin_create_tournament(
     db.commit()
     db.refresh(tournament)
     audit(db, "create", "tournament", tournament.id, tournament.name)
-    return RedirectResponse("/admin?message=Campeonato criado", 303)
+    return admin_redirect("Campeonato criado com sucesso.")
 
 @app.post("/admin/campeonato/{tournament_id}/status")
 def admin_tournament_status(tournament_id: int, request: Request, status: Annotated[str, Form()], db: Session = Depends(get_db)):
@@ -658,19 +1048,38 @@ def admin_tournament_status(tournament_id: int, request: Request, status: Annota
     tournament.status = status
     db.commit()
     audit(db, "status", "tournament", tournament.id, status)
-    return RedirectResponse("/admin?message=Status atualizado", 303)
+    return admin_redirect("Status atualizado.", f"/admin/campeonato/{tournament_id}")
+
 
 @app.post("/admin/campeonato/{tournament_id}/sortear")
 def admin_draw_groups(tournament_id: int, request: Request, db: Session = Depends(get_db)):
     require_admin(request)
     tournament = db.get(Tournament, tournament_id)
+    if not tournament:
+        raise HTTPException(404)
+
+    approved = db.scalars(select(Registration).where(
+        Registration.tournament_id == tournament.id,
+        Registration.status == "approved",
+    )).all()
+    if len(approved) < max(2, tournament.group_size):
+        return admin_redirect(
+            f"Não foi possível sortear: há {len(approved)} inscrição(ões) aprovada(s), mas o grupo exige {tournament.group_size}.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+
     try:
-        generate_groups(db, tournament)
-        message = "Grupos e partidas gerados"
+        groups = generate_groups(db, tournament)
+        total_matches = db.scalar(
+            select(func.count()).select_from(Match).where(Match.tournament_id == tournament.id)
+        )
+        message = f"Sorteio concluído: {len(groups)} grupo(s) e {total_matches} partida(s) gerada(s)."
     except Exception as exc:
-        message = str(exc)
+        db.rollback()
+        message = f"Falha no sorteio: {exc}"
+
     audit(db, "draw_groups", "tournament", tournament_id, message)
-    return RedirectResponse(f"/admin?message={message}", 303)
+    return admin_redirect(message, f"/admin/campeonato/{tournament_id}")
 
 @app.post("/admin/pagamento/{payment_id}")
 def admin_payment(payment_id: int, request: Request, status: Annotated[str, Form()], db: Session = Depends(get_db)):

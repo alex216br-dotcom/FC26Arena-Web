@@ -69,3 +69,16 @@ Para armazenar provas no Railway, monte um Volume em `/data`.
 
 A aplicação cria tabelas automaticamente. Como esta versão muda muito o esquema,
 use um banco novo na primeira publicação.
+
+
+## V6.1 — Painel administrativo profissional
+
+- Visão geral com indicadores.
+- Tela de gerenciamento para cada campeonato.
+- Edição completa de nome, valores, prêmio, vagas, data, geração, modalidade, regulamento e status.
+- Sorteio com validação clara da quantidade mínima.
+- Repetição e limpeza segura do sorteio sem apagar inscrições.
+- Aprovação, cancelamento e remoção de inscrições.
+- Inclusão manual de jogador em campeonato 1x1.
+- Gestão central de jogadores, contatos, ID EA, geração, plataforma e bloqueio.
+- Gestão de partidas, horários, placares e status.

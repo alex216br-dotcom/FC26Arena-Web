@@ -1,8 +1,121 @@
-{% extends "base.html" %}{% block content %}<section class="container section"><h1>Painel administrativo</h1>{% if message %}<div class="success">{{ message }}</div>{% endif %}
-<div class="admin-tabs"><a class="btn" href="#campeonatos">Campeonatos</a><a class="btn" href="#pagamentos">Pagamentos</a><a class="btn" href="#denuncias">Denúncias</a><a class="btn" href="#cupons">Cupons</a><a class="btn" href="#auditoria">Auditoria</a><a class="btn" href="/admin/sair">Sair</a></div>
-<div id="campeonatos" class="admin-section"><div class="grid-2"><form class="panel" method="post" action="/admin/campeonatos"><h2>Criar campeonato</h2><div class="field"><label>Nome</label><input name="name" required></div><div class="field"><label>Modalidade</label><select name="mode"><option>1x1</option><option>2x2</option><option>Pro Clubs</option></select></div><div class="field"><label>Geração</label><select name="generation"><option value="nova">Nova</option><option value="antiga">Antiga</option></select></div><div class="field"><label>Vagas</label><input type="number" name="max_entries" value="32"></div><div class="field"><label>Jogadores por grupo</label><input type="number" name="group_size" value="4"></div><div class="field"><label>Taxa</label><input type="number" step="0.01" name="registration_fee" value="0"></div><div class="field"><label>Prêmio</label><input type="number" step="0.01" name="prize" value="50"></div><div class="field"><label>Data</label><input name="starts_at" value="A definir"></div><div class="field"><label>Tema</label><select name="color_theme"><option>green</option><option>purple</option><option>cyan</option><option>orange</option></select></div><div class="field"><label>Regulamento</label><textarea name="rules"></textarea></div><button class="btn btn-primary">Criar</button></form><div><h2>Campeonatos</h2>{% for t in tournaments %}<div class="panel"><h3>{{ t.name }}</h3><p>{{ t.mode }} · {{ t.status }} · {{ t.generation }}</p><form method="post" action="/admin/campeonato/{{ t.id }}/status"><select name="status"><option value="open">open</option><option value="closed">closed</option><option value="archived">archived</option></select><button class="btn">Atualizar</button></form><form method="post" action="/admin/campeonato/{{ t.id }}/sortear" style="margin-top:8px"><button class="btn btn-primary">Sortear grupos e partidas</button></form></div>{% endfor %}</div></div></div>
-<div id="pagamentos" class="admin-section"><h2>Pagamentos</h2><div class="table-wrap"><table><tr><th>#</th><th>Campeonato</th><th>Valor</th><th>Status</th><th>Ação</th></tr>{% for p in payments %}<tr><td>{{ p.id }}</td><td>{{ p.registration.tournament.name }}</td><td>R$ {{ '%.2f'|format(p.amount) }}</td><td>{{ p.status }}</td><td><form method="post" action="/admin/pagamento/{{ p.id }}"><button class="btn btn-primary" name="status" value="approved">Aprovar</button> <button class="btn btn-danger" name="status" value="rejected">Rejeitar</button></form></td></tr>{% endfor %}</table></div></div>
-<div id="denuncias" class="admin-section"><h2>Denúncias e W.O.</h2><div class="table-wrap"><table><tr><th>#</th><th>Tipo</th><th>Jogador</th><th>Descrição</th><th>Status</th></tr>{% for r in reports %}<tr><td>{{ r.id }}</td><td>{{ r.report_type }}</td><td>{{ r.reporter.name }}</td><td>{{ r.description }}</td><td><form method="post" action="/admin/denuncia/{{ r.id }}"><select name="status"><option>open</option><option>resolved</option><option>rejected</option></select><button class="btn">Salvar</button></form></td></tr>{% endfor %}</table></div></div>
-<div id="cupons" class="admin-section"><div class="grid-2"><form class="panel" method="post" action="/admin/cupons"><h2>Novo cupom</h2><div class="field"><input name="code" placeholder="CODIGO" required></div><div class="field"><input type="number" name="discount_percent" placeholder="Desconto %" required></div><div class="field"><input type="number" name="max_uses" value="0"></div><button class="btn btn-primary">Criar cupom</button></form><div class="panel"><h2>Cupons</h2>{% for c in coupons %}<p>{{ c.code }} — {{ c.discount_percent }}% — {{ c.uses }}/{{ c.max_uses or '∞' }}</p>{% endfor %}</div></div></div>
-<div class="admin-section"><h2>Suporte</h2>{% for t in tickets %}<div class="panel"><strong>{{ t.subject }}</strong><p>{{ t.message }}</p><form method="post" action="/admin/suporte/{{ t.id }}"><button class="btn" name="status" value="resolved">Resolver</button></form></div>{% endfor %}</div>
-<div id="auditoria" class="admin-section"><h2>Auditoria</h2><div class="table-wrap"><table><tr><th>Data</th><th>Ação</th><th>Entidade</th><th>Detalhes</th></tr>{% for a in audits %}<tr><td>{{ a.created_at.strftime('%d/%m %H:%M') }}</td><td>{{ a.action }}</td><td>{{ a.entity }} #{{ a.entity_id or '-' }}</td><td>{{ a.details }}</td></tr>{% endfor %}</table></div></div></section>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Administração — FC26 Arena{% endblock %}
+{% block content %}
+<section class="admin-shell">
+  <aside class="admin-sidebar">
+    <div class="admin-brand"><span class="logo-mark">A</span><div><strong>FC26 Arena</strong><small>Central administrativa</small></div></div>
+    <nav>
+      <a class="active" href="/admin">📊 Visão geral</a>
+      <a href="#campeonatos">🏆 Campeonatos</a>
+      <a href="/admin/jogadores">👥 Jogadores</a>
+      <a href="#pagamentos">💳 Pagamentos</a>
+      <a href="#denuncias">🛡️ Denúncias</a>
+      <a href="#cupons">🎟️ Cupons</a>
+      <a href="#suporte">💬 Suporte</a>
+      <a href="#auditoria">🧾 Auditoria</a>
+      <a href="/admin/sair">🚪 Sair</a>
+    </nav>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-header">
+      <div><span class="eyebrow">PAINEL DO ORGANIZADOR</span><h1>Visão geral</h1><p class="muted">Gerencie campeonatos, inscrições, jogadores e ocorrências.</p></div>
+      <a class="btn btn-primary" href="#novo-campeonato">＋ Novo campeonato</a>
+    </div>
+
+    {% if message %}<div class="success admin-message">{{ message }}</div>{% endif %}
+
+    <div class="admin-kpis">
+      <div class="admin-kpi"><span>👥</span><div><strong>{{ stats.active_users }}</strong><small>Jogadores ativos</small></div></div>
+      <div class="admin-kpi"><span>🏆</span><div><strong>{{ stats.open_tournaments }}</strong><small>Campeonatos abertos</small></div></div>
+      <div class="admin-kpi"><span>📝</span><div><strong>{{ stats.registrations }}</strong><small>Inscrições totais</small></div></div>
+      <div class="admin-kpi"><span>⏳</span><div><strong>{{ stats.pending_registrations }}</strong><small>Inscrições pendentes</small></div></div>
+      <div class="admin-kpi"><span>💳</span><div><strong>{{ stats.pending_payments }}</strong><small>Pagamentos pendentes</small></div></div>
+      <div class="admin-kpi"><span>⚠️</span><div><strong>{{ stats.open_reports }}</strong><small>Denúncias abertas</small></div></div>
+    </div>
+
+    <section id="campeonatos" class="admin-card">
+      <div class="admin-section-head"><div><h2>Campeonatos</h2><p>Acompanhe vagas, inscrições aprovadas e partidas.</p></div></div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Campeonato</th><th>Modalidade</th><th>Inscritos</th><th>Aprovados</th><th>Partidas</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody>
+          {% for row in tournament_rows %}
+            {% set t = row.tournament %}
+            <tr>
+              <td><strong>{{ t.name }}</strong><small>{{ 'Nova geração' if t.generation == 'nova' else 'Antiga geração' }} · {{ t.starts_at }}</small></td>
+              <td><span class="admin-chip">{{ t.mode }}</span></td>
+              <td>{{ row.counts.total }}/{{ t.max_entries }}</td>
+              <td>{{ row.counts.approved }}</td>
+              <td>{{ row.matches }}</td>
+              <td><span class="status status-{{ t.status }}">{{ t.status }}</span></td>
+              <td class="admin-actions">
+                <a class="btn btn-small btn-primary" href="/admin/campeonato/{{ t.id }}">Gerenciar</a>
+                <form method="post" action="/admin/campeonato/{{ t.id }}/sortear" onsubmit="return confirm('Sortear novamente apagará as partidas atuais deste campeonato. Continuar?')">
+                  <button class="btn btn-small" {% if not row.can_draw %}disabled title="Inscrições aprovadas insuficientes"{% endif %}>🎲 Sortear</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7">Nenhum campeonato criado.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="novo-campeonato" class="admin-card">
+      <details>
+        <summary>＋ Criar novo campeonato</summary>
+        <form class="admin-form-grid" method="post" action="/admin/campeonatos">
+          <div class="field span-2"><label>Nome</label><input name="name" required></div>
+          <div class="field"><label>Modalidade</label><select name="mode"><option>1x1</option><option>2x2</option><option>Pro Clubs</option></select></div>
+          <div class="field"><label>Geração</label><select name="generation"><option value="nova">Nova geração</option><option value="antiga">Antiga geração</option></select></div>
+          <div class="field"><label>Vagas</label><input type="number" min="2" name="max_entries" value="32"></div>
+          <div class="field"><label>Participantes por grupo</label><input type="number" min="2" name="group_size" value="4"></div>
+          <div class="field"><label>Taxa de inscrição</label><input type="number" min="0" step="0.01" name="registration_fee" value="0"></div>
+          <div class="field"><label>Premiação</label><input type="number" min="0" step="0.01" name="prize" value="50"></div>
+          <div class="field"><label>Data e horário</label><input name="starts_at" value="A definir"></div>
+          <div class="field"><label>Tema</label><select name="color_theme"><option value="green">Verde</option><option value="purple">Roxo</option><option value="cyan">Azul</option><option value="orange">Laranja</option></select></div>
+          <div class="field span-2"><label>Regulamento</label><textarea name="rules"></textarea></div>
+          <div class="span-2"><button class="btn btn-primary">Criar campeonato</button></div>
+        </form>
+      </details>
+    </section>
+
+    <div class="admin-two-columns">
+      <section id="pagamentos" class="admin-card">
+        <div class="admin-section-head"><h2>Pagamentos recentes</h2></div>
+        {% for p in payments %}
+          <div class="admin-list-item"><div><strong>#{{ p.id }} · {{ p.registration.tournament.name }}</strong><small>R$ {{ '%.2f'|format(p.amount) }} · {{ p.status }}</small></div>
+          {% if p.status == 'pending' %}<form method="post" action="/admin/pagamento/{{ p.id }}"><button class="btn btn-small btn-primary" name="status" value="approved">Aprovar</button></form>{% endif %}</div>
+        {% else %}<p class="muted">Nenhum pagamento.</p>{% endfor %}
+      </section>
+
+      <section id="denuncias" class="admin-card">
+        <div class="admin-section-head"><h2>Denúncias e W.O.</h2></div>
+        {% for r in reports %}
+          <div class="admin-list-item"><div><strong>{{ r.report_type }} · {{ r.reporter.name }}</strong><small>{{ r.description }}</small></div><form method="post" action="/admin/denuncia/{{ r.id }}"><select name="status"><option value="open">Aberta</option><option value="resolved">Resolvida</option><option value="rejected">Rejeitada</option></select><button class="btn btn-small">Salvar</button></form></div>
+        {% else %}<p class="muted">Nenhuma denúncia.</p>{% endfor %}
+      </section>
+    </div>
+
+    <div class="admin-two-columns">
+      <section id="cupons" class="admin-card">
+        <h2>Cupons</h2>
+        <form class="admin-inline-form" method="post" action="/admin/cupons"><input name="code" placeholder="CÓDIGO" required><input type="number" name="discount_percent" min="0" max="100" placeholder="Desconto %" required><input type="number" name="max_uses" min="0" value="0" title="0 = ilimitado"><button class="btn btn-primary">Criar</button></form>
+        {% for c in coupons %}<p><span class="admin-chip">{{ c.code }}</span> {{ c.discount_percent }}% · {{ c.uses }}/{{ c.max_uses or '∞' }}</p>{% else %}<p class="muted">Nenhum cupom.</p>{% endfor %}
+      </section>
+      <section id="suporte" class="admin-card">
+        <h2>Suporte</h2>
+        {% for t in tickets %}<div class="admin-list-item"><div><strong>{{ t.subject }}</strong><small>{{ t.message }}</small></div><form method="post" action="/admin/suporte/{{ t.id }}"><button class="btn btn-small" name="status" value="resolved">Resolver</button></form></div>{% else %}<p class="muted">Nenhum chamado.</p>{% endfor %}
+      </section>
+    </div>
+
+    <section id="auditoria" class="admin-card">
+      <h2>Auditoria recente</h2>
+      <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Data</th><th>Ação</th><th>Entidade</th><th>Detalhes</th></tr></thead><tbody>{% for a in audits %}<tr><td>{{ a.created_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ a.action }}</td><td>{{ a.entity }} #{{ a.entity_id or '-' }}</td><td>{{ a.details }}</td></tr>{% else %}<tr><td colspan="4">Nenhuma ação registrada.</td></tr>{% endfor %}</tbody></table></div>
+    </section>
+  </main>
+</section>
+{% endblock %}
