@@ -1,16 +1,60 @@
-# FC26 Arena Web V4 — Plataforma Completa
+# FC26 Arena Web V5 Base
 
-Inclui duas divisões, cadastro, login, ranking, grupos, mata-mata inicial, Sala PVP por partida, chat, WhatsApp do adversário, envio e confirmação de resultado, W.O./denúncias, XP/nível e painel administrativo.
+Base profissional para evolução da plataforma FC26 Arena.
 
-## Variáveis Railway
+## O que já funciona
+
+- Cadastro e login de jogadores.
+- Login administrativo por senha.
+- Vários campeonatos simultâneos.
+- Criação de campeonatos pelo painel.
+- Modalidades 1x1, 2x2 e Pro Clubs.
+- Nova e antiga geração.
+- Inscrição de jogador em campeonato.
+- Estrutura de equipes e membros.
+- Estrutura de temporadas.
+- Estrutura de partidas, grupos e mata-mata.
+- Estrutura de ranking permanente.
+- Estrutura de XP, níveis e conquistas.
+- Estrutura de cupons e pagamentos.
+- Estrutura de notificações.
+- Estrutura de upload de provas.
+- Estrutura de recuperação de senha.
+- Estrutura de administradores e permissões.
+- Auditoria de ações administrativas.
+- PostgreSQL e Alembic preparados.
+
+## O que ainda depende de integração externa
+
+- Envio real de e-mail.
+- WhatsApp oficial.
+- Telegram automático.
+- Pix automático e webhook.
+- Armazenamento externo de arquivos.
+- Geração completa de todas as fases do mata-mata.
+- Rotinas assíncronas de notificações.
+
+Esses módulos estão modelados no banco, mas precisam das credenciais do provedor escolhido.
+
+## Railway
+
+Adicione PostgreSQL e configure:
+
+```text
 DATABASE_URL=${{Postgres.DATABASE_URL}}
-SECRET_KEY=uma-chave-longa
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=sua-senha
-GROUP_URL=link-do-grupo
-MAX_PLAYERS=32
-CHAMPION_PRIZE_NEW=50
-CHAMPION_PRIZE_OLD=50
+SECRET_KEY=uma-chave-longa-e-aleatoria
+ADMIN_PASSWORD=sua-senha-forte
+SITE_URL=https://seu-dominio.up.railway.app
+```
 
-## Banco
-A estrutura mudou. Use PostgreSQL novo ou migrações antes de colocar em produção.
+## Admin
+
+Acesse:
+
+```text
+/admin/login
+```
+
+## Migração
+
+Para produção, use Alembic. Nesta base, as tabelas também são criadas automaticamente no primeiro deploy para facilitar os testes.
