@@ -1,3 +1,135 @@
-{% extends "base.html" %}{% block content %}<section class="container section"><h1>⚔ Sala PVP</h1><div class="grid-2"><div class="panel"><h2>{{ entry_name(match.home) }} x {{ entry_name(match.away) }}</h2><p>{{ match.tournament.name }} · {{ match.round_name }}</p><p>Data: {{ match.scheduled_for }}</p><p>Status: <span class="badge">{{ match.status }}</span></p>{% if match.home.user %}<p>{{ match.home.user.name }} — ID EA: {{ match.home.user.ea_id }}</p>{% endif %}{% if match.away.user %}<p>{{ match.away.user.name }} — ID EA: {{ match.away.user.ea_id }}</p>{% endif %}</div><div class="panel"><h2>Resultado</h2>{% if match.status=='awaiting_confirmation' %}<p>Placar enviado: {{ match.home_score }} x {{ match.away_score }}</p>{% if match.result_submitted_by_user_id != user.id %}<form method="post" action="/partida/{{ match.id }}/confirmar"><button class="btn btn-primary" name="action" value="confirm">Confirmar</button> <button class="btn btn-danger" name="action" value="contest">Contestar</button></form>{% else %}<p>Aguardando o adversário.</p>{% endif %}{% elif match.status=='completed' %}<div class="success">Resultado confirmado: {{ match.home_score }} x {{ match.away_score }}</div>{% else %}<form method="post" action="/partida/{{ match.id }}/resultado"><div class="field"><label>Placar</label><input type="number" name="home_score" min="0" required> x <input type="number" name="away_score" min="0" required></div><button class="btn btn-primary">Enviar resultado</button></form>{% endif %}</div></div>
-<h2>Chat</h2><div class="panel chat">{% for msg in messages %}<div class="chat-msg"><strong>{{ msg.user.name }}</strong>: {{ msg.message }} <small class="muted">{{ msg.created_at.strftime('%d/%m %H:%M') }}</small></div>{% else %}<p>Nenhuma mensagem.</p>{% endfor %}</div><form class="panel" method="post" action="/partida/{{ match.id }}/mensagem"><div class="field"><textarea name="message" placeholder="Combine o horário com o adversário" required></textarea></div><button class="btn btn-primary">Enviar</button></form>
-<div class="grid-2"><form class="panel" method="post" action="/partida/{{ match.id }}/prova" enctype="multipart/form-data"><h2>Enviar prova</h2><div class="field"><input type="file" name="file" required></div><div class="field"><textarea name="description"></textarea></div><button class="btn">Enviar arquivo</button></form><form class="panel" method="post" action="/partida/{{ match.id }}/denunciar"><h2>Problema ou W.O.</h2><div class="field"><select name="report_type"><option value="wo">Solicitar W.O.</option><option value="conexao">Conexão</option><option value="conduta">Conduta</option><option value="resultado">Resultado</option></select></div><div class="field"><textarea name="description" required></textarea></div><button class="btn btn-danger">Enviar denúncia</button></form></div><h2>Provas</h2>{% for e in evidences %}<div class="panel"><a class="link-green" href="/provas/{{ e.file_path }}" target="_blank">{{ e.original_name }}</a> — {{ e.description }}</div>{% endfor %}</section>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Sala PVP — FC26 Arena{% endblock %}
+{% block content %}
+<section class="container section">
+  <div class="pvp-room-header">
+    <div>
+      <span class="eyebrow">CONFRONTO OFICIAL</span>
+      <h1>⚔ Sala PVP</h1>
+      <p>Use esta sala para organizar toda a partida com o adversário.</p>
+    </div>
+    <a class="btn" href="/como-funciona">Como jogar?</a>
+  </div>
+
+  <div class="pvp-instructions">
+    <h2>Como realizar esta partida</h2>
+    <div class="pvp-instruction-grid">
+      <div><strong>1</strong><span>Converse no chat e combine o horário.</span></div>
+      <div><strong>2</strong><span>Confira o ID EA do adversário.</span></div>
+      <div><strong>3</strong><span>Adicione o perfil informado.</span></div>
+      <div><strong>4</strong><span>Entre em Amistosos Online.</span></div>
+      <div><strong>5</strong><span>Envie o convite e jogue.</span></div>
+      <div><strong>6</strong><span>Envie e confirme o placar.</span></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel match-summary">
+      <h2>{{ entry_name(match.home) }} x {{ entry_name(match.away) }}</h2>
+      <p>{{ match.tournament.name }} · {{ match.round_name }}</p>
+      <p>Data: {{ match.scheduled_for }}</p>
+      <p>Status: <span class="badge">{{ match.status }}</span></p>
+
+      <div class="ea-profile-list">
+        {% if match.home.user %}
+          <div class="ea-profile">
+            <div><small>{{ match.home.user.name }}</small><strong>{{ match.home.user.ea_id }}</strong></div>
+            <button type="button" class="btn btn-small" onclick="copyEaId('{{ match.home.user.ea_id|e }}', this)">Copiar ID EA</button>
+          </div>
+        {% endif %}
+        {% if match.away.user %}
+          <div class="ea-profile">
+            <div><small>{{ match.away.user.name }}</small><strong>{{ match.away.user.ea_id }}</strong></div>
+            <button type="button" class="btn btn-small" onclick="copyEaId('{{ match.away.user.ea_id|e }}', this)">Copiar ID EA</button>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Resultado</h2>
+      {% if match.status=='awaiting_confirmation' %}
+        <p>Placar enviado: {{ match.home_score }} x {{ match.away_score }}</p>
+        {% if match.result_submitted_by_user_id != user.id %}
+          <form method="post" action="/partida/{{ match.id }}/confirmar">
+            <button class="btn btn-primary" name="action" value="confirm">Confirmar</button>
+            <button class="btn btn-danger" name="action" value="contest">Contestar</button>
+          </form>
+        {% else %}
+          <p>Aguardando o adversário.</p>
+        {% endif %}
+      {% elif match.status=='completed' %}
+        <div class="success">Resultado confirmado: {{ match.home_score }} x {{ match.away_score }}</div>
+      {% else %}
+        <form method="post" action="/partida/{{ match.id }}/resultado">
+          <div class="field score-field">
+            <label>Placar final</label>
+            <div><input type="number" name="home_score" min="0" required> <span>x</span> <input type="number" name="away_score" min="0" required></div>
+          </div>
+          <button class="btn btn-primary">Enviar resultado</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="section-title pvp-chat-title">
+    <div><h2>💬 Chat da partida</h2><p class="muted">Combine o horário e confirme o perfil EA antes de jogar.</p></div>
+  </div>
+
+  <div class="panel chat">
+    {% for msg in messages %}
+      <div class="chat-msg">
+        <strong>{{ msg.user.name }}</strong>: {{ msg.message }}
+        <small class="muted">{{ msg.created_at.strftime('%d/%m %H:%M') }}</small>
+      </div>
+    {% else %}
+      <p>Nenhuma mensagem. Envie uma mensagem para iniciar a conversa.</p>
+    {% endfor %}
+  </div>
+
+  <form class="panel pvp-message-form" method="post" action="/partida/{{ match.id }}/mensagem">
+    <div class="field">
+      <textarea
+        name="message"
+        placeholder="Exemplo: Olá! Meu ID EA é MeuPerfilFC. Podemos jogar às 20h?"
+        required
+      ></textarea>
+    </div>
+    <button class="btn btn-primary">Enviar mensagem</button>
+  </form>
+
+  <div class="grid-2">
+    <form class="panel" method="post" action="/partida/{{ match.id }}/prova" enctype="multipart/form-data">
+      <h2>Enviar prova</h2>
+      <p class="muted">Envie um print do resultado ou de algum problema ocorrido.</p>
+      <div class="field"><input type="file" name="file" required></div>
+      <div class="field"><textarea name="description" placeholder="Descreva o arquivo enviado"></textarea></div>
+      <button class="btn">Enviar arquivo</button>
+    </form>
+
+    <form class="panel" method="post" action="/partida/{{ match.id }}/denunciar">
+      <h2>Problema ou W.O.</h2>
+      <div class="field">
+        <select name="report_type">
+          <option value="wo">Solicitar W.O.</option>
+          <option value="conexao">Conexão</option>
+          <option value="conduta">Conduta</option>
+          <option value="resultado">Resultado</option>
+        </select>
+      </div>
+      <div class="field"><textarea name="description" placeholder="Explique o que aconteceu" required></textarea></div>
+      <button class="btn btn-danger">Enviar denúncia</button>
+    </form>
+  </div>
+
+  <h2>Provas enviadas</h2>
+  {% for e in evidences %}
+    <div class="panel">
+      <a class="link-green" href="/provas/{{ e.file_path }}" target="_blank">{{ e.original_name }}</a>
+      — {{ e.description }}
+    </div>
+  {% else %}
+    <p class="muted">Nenhuma prova enviada.</p>
+  {% endfor %}
+</section>
+{% endblock %}

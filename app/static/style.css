@@ -285,3 +285,91 @@ body.menu-open{overflow:hidden}
   .hero-buttons{grid-template-columns:1fr}
   .hero-stadium .hero-copy h1{font-size:38px}
 }
+
+
+/* V6.1 — imagens específicas, regulamento e explicação da Sala PVP */
+.navlinks{gap:17px}.navlinks a{font-size:13px}
+
+.hero-picture{display:block;width:100%}
+.hero-picture img{display:block;width:100%;height:auto}
+.hero-stadium .hero-player{
+  position:static!important;width:100%!important;max-width:720px!important;max-height:none!important;
+  object-fit:contain!important;object-position:center!important;margin:0 auto!important;transform:none!important
+}
+
+.pvp-explainer{
+  display:grid;grid-template-columns:1.2fr .8fr;gap:28px;align-items:center;
+  padding:28px;border:1px solid #245033;border-radius:14px;
+  background:radial-gradient(circle at 85% 50%,#123b1d,#08130e 52%,#050b08)
+}
+.pvp-explainer h2{font-size:30px;margin:9px 0}.pvp-explainer p{color:#c9d5ce;line-height:1.65}
+.pvp-actions{display:flex;gap:10px;flex-wrap:wrap}
+.pvp-mini-steps{display:grid;gap:9px}
+.pvp-mini-steps div{display:flex;align-items:center;gap:13px;padding:13px;border:1px solid #1d3a2a;border-radius:9px;background:#07100d}
+.pvp-mini-steps strong,.step-number{display:grid;place-items:center;flex:0 0 auto;width:34px;height:34px;border-radius:50%;background:var(--green);color:#031006;font-weight:1000}
+
+.info-hero{padding:72px 0 48px;border-bottom:1px solid #183126;background:radial-gradient(circle at 70% 20%,#164823,#07140d 38%,#020706 75%)}
+.info-hero h1{font-size:clamp(42px,6vw,74px);margin:15px 0 10px;line-height:.96}
+.info-hero p{max-width:760px;color:#cbd7d0;font-size:18px;line-height:1.55}
+.info-page{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;padding-top:38px;padding-bottom:55px;align-items:start}
+.steps-timeline{display:grid;gap:13px}
+.info-step{display:flex;gap:18px;padding:22px;border:1px solid #1b3528;border-radius:12px;background:linear-gradient(145deg,#091510,#050c09)}
+.info-step h2{margin:2px 0 8px}.info-step p{margin:0;color:#bfcac4;line-height:1.6}
+.highlighted-step{border-color:#35cc50;box-shadow:0 0 34px #39f85813}
+.room-example{margin-top:14px;padding:13px;border-left:3px solid var(--green);background:#071b0e;border-radius:0 8px 8px 0}
+.room-example p{margin-top:5px;color:#e8f9ed}
+.play-checklist,.rules-side{position:sticky;top:94px}
+.play-checklist{padding:22px;border:1px solid #245033;border-radius:12px;background:#07110e}
+.play-checklist h2{margin-top:0}.play-checklist ul{padding-left:20px;color:#cbd6d0;line-height:1.8}.play-checklist .btn{width:100%;margin-top:8px}
+
+.rules-layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:25px;padding-top:38px;padding-bottom:55px;align-items:start}
+.rules-content{display:grid;gap:12px}
+.rule-card{display:flex;gap:17px;padding:20px;border:1px solid #1b3528;border-radius:11px;background:#07110e}
+.rule-card>span{font-size:22px;color:var(--green);font-weight:1000;min-width:38px}
+.rule-card h2{margin:0 0 7px;font-size:19px}.rule-card p{margin:0;color:#bec9c3;line-height:1.6}
+.important-rule{border-color:#34c950;background:linear-gradient(135deg,#0a2913,#07110e)}
+.rules-side{display:grid;gap:13px}.rules-side .btn{width:100%;margin-top:8px}
+
+.pvp-room-header{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:20px}
+.pvp-room-header h1{font-size:40px;margin:8px 0}.pvp-room-header p{color:var(--muted)}
+.pvp-instructions{margin-bottom:20px;padding:20px;border:1px solid #2b653a;border-radius:12px;background:linear-gradient(135deg,#0b2814,#07110e)}
+.pvp-instructions h2{margin-top:0}
+.pvp-instruction-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.pvp-instruction-grid div{display:flex;align-items:center;gap:10px;padding:11px;border-radius:8px;background:#06100c;border:1px solid #1b3528}
+.pvp-instruction-grid strong{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--green);color:#041006}
+.ea-profile-list{display:grid;gap:9px;margin-top:18px}
+.ea-profile{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:1px solid #1d3a2a;border-radius:8px;background:#06100c}
+.ea-profile small,.ea-profile strong{display:block}.ea-profile small{color:var(--muted);margin-bottom:4px}
+.score-field>div{display:flex;align-items:center;gap:8px}.score-field input{width:90px}
+.pvp-chat-title{margin-top:28px;margin-bottom:10px}.pvp-chat-title h2{margin:0}.pvp-chat-title p{margin:5px 0 0}
+.pvp-message-form{margin-top:10px}.pvp-message-form textarea{min-height:85px}
+.tournament-specific-rules{margin:17px 0;padding:14px;border-left:3px solid var(--green);background:#071a0e}.tournament-specific-rules h3{margin:0 0 7px}
+.tournament-specific-rules p{white-space:pre-wrap}
+.tournament-rule-links{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}
+
+@media(max-width:900px){
+  .info-page,.rules-layout,.pvp-explainer{grid-template-columns:1fr}
+  .play-checklist,.rules-side{position:static}
+  .pvp-instruction-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+@media(max-width:700px){
+  .hero-visual{padding:5px 0 28px}
+  .hero-picture{width:100%;max-width:430px;margin:0 auto}
+  .hero-stadium .hero-player{
+    width:100%!important;max-width:430px!important;height:auto!important;max-height:none!important;
+    object-fit:contain!important;object-position:center!important;border-radius:12px
+  }
+  .pvp-explainer{padding:20px}.pvp-explainer h2{font-size:25px}
+  .info-hero{padding:48px 0 35px}.info-hero h1{font-size:42px}
+  .info-page,.rules-layout{padding-top:22px}
+  .pvp-room-header{display:block}.pvp-room-header .btn{margin-top:8px}
+  .pvp-instruction-grid{grid-template-columns:1fr}
+  .ea-profile{align-items:flex-start;flex-direction:column}.ea-profile .btn{width:100%}
+  .rule-card{padding:17px;gap:11px}
+}
+
+@media(max-width:430px){
+  .hero-picture{max-width:370px}
+  .hero-stadium .hero-player{max-width:370px!important}
+}

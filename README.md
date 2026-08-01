@@ -90,3 +90,15 @@ use um banco novo na primeira publicação.
 - A imagem do jogador no estádio agora é usada de verdade no hero.
 - No celular, a imagem é exibida inteira, centralizada e sem ficar atrás das opções.
 - Os botões e cartões do hero permanecem visíveis antes da imagem.
+
+
+## Atualização: Regulamento, Como funciona e Sala PVP
+
+- Imagem horizontal no desktop e imagem vertical específica no celular.
+- Página pública `/como-funciona`.
+- Página pública `/regulamento`.
+- Explicação completa sobre a Sala PVP.
+- Orientação para confirmar/copiar o ID EA.
+- Instruções para realizar a partida em Amistosos Online.
+- Fluxo de envio, confirmação, contestação, provas e W.O.
+- Sala PVP reformulada com instruções antes da partida.

@@ -62,3 +62,15 @@ document.addEventListener('keydown', (event) => {
 window.addEventListener('resize', () => {
   if(window.innerWidth > 1000) closeMobileMenu();
 });
+
+
+async function copyEaId(value, button){
+  try{
+    await navigator.clipboard.writeText(value);
+    const original = button.textContent;
+    button.textContent = 'ID copiado!';
+    setTimeout(() => button.textContent = original, 1600);
+  }catch(error){
+    window.prompt('Copie o ID EA:', value);
+  }
+}

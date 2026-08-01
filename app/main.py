@@ -151,6 +151,15 @@ def home(request: Request, db: Session = Depends(get_db)):
         open_register=request.query_params.get("cadastro") == "1",
     ))
 
+
+@app.get("/como-funciona", response_class=HTMLResponse)
+def how_it_works(request: Request):
+    return templates.TemplateResponse("how_it_works.html", ctx(request))
+
+@app.get("/regulamento", response_class=HTMLResponse)
+def public_rules(request: Request):
+    return templates.TemplateResponse("rules.html", ctx(request))
+
 @app.post("/cadastro")
 def register(
     request: Request,

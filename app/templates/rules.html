@@ -1,1 +1,88 @@
-{% extends "base.html" %}{% block content %}<section class="container section"><div class="card"><h2>📜 Regulamento oficial</h2><h3>Divisões</h3><p><strong>Nova geração:</strong> PlayStation 5, Xbox Series X|S e PC.</p><p><strong>Antiga geração:</strong> PlayStation 4 e Xbox One.</p><p>As divisões são independentes: jogadores de gerações diferentes não se enfrentam.</p><h3>Formato</h3><p>Até 32 jogadores por divisão, grupos de 4, todos contra todos e classificação dos dois melhores para o mata-mata.</p><h3>Pontuação</h3><p>Vitória: 3 pontos · Empate: 1 ponto · Derrota: 0 ponto.</p><h3>Desempate</h3><p>Pontos, saldo de gols, gols marcados, vitórias e decisão administrativa.</p><h3>Conduta</h3><p>Fraude, ofensas, combinação de resultados ou ausência podem causar W.O. ou exclusão.</p><h3>Premiação</h3><p>A premiação de cada divisão aparece na página inicial e será paga após a validação da final.</p></div></section>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Regulamento — FC26 Arena{% endblock %}
+{% block content %}
+<section class="info-hero rules-hero">
+  <div class="container">
+    <span class="eyebrow">REGRAS GERAIS</span>
+    <h1>Regulamento do FC26 Arena</h1>
+    <p>Estas regras gerais valem para os campeonatos da plataforma. Cada torneio também pode possuir regras específicas.</p>
+  </div>
+</section>
+
+<section class="container rules-layout">
+  <main class="rules-content">
+    <article class="rule-card">
+      <span>01</span>
+      <div><h2>Cadastro e ID EA</h2><p>O jogador deve usar informações verdadeiras e manter correto o ID EA, a geração e a plataforma cadastrados. O perfil utilizado na partida deve ser o mesmo informado no site.</p></div>
+    </article>
+
+    <article class="rule-card">
+      <span>02</span>
+      <div><h2>Gerações e plataformas</h2><p>Campeonatos de nova e antiga geração são separados. O participante deve se inscrever somente em competições compatíveis com seu console ou PC.</p></div>
+    </article>
+
+    <article class="rule-card important-rule">
+      <span>03</span>
+      <div><h2>Sala PVP obrigatória</h2><p>Cada confronto possui uma Sala PVP exclusiva. O chat deve ser utilizado para confirmar o horário, o ID EA, o convite e qualquer dificuldade relacionada à partida. As mensagens podem ser usadas pela administração em uma análise.</p></div>
+    </article>
+
+    <article class="rule-card">
+      <span>04</span>
+      <div><h2>Modo de jogo</h2><p>As partidas 1x1 devem ser realizadas no modo <strong>Amistosos Online</strong> do EA SPORTS FC. Os jogadores devem adicionar o adversário pelo ID EA ou perfil da plataforma e enviar o convite.</p></div>
+    </article>
+
+    <article class="rule-card">
+      <span>05</span>
+      <div><h2>Horário da partida</h2><p>Os adversários devem respeitar a data e o horário definidos pelo campeonato ou combinar o horário dentro da Sala PVP, conforme orientação da organização.</p></div>
+    </article>
+
+    <article class="rule-card">
+      <span>06</span>
+      <div><h2>Resultado e confirmação</h2><p>Ao terminar, um dos jogadores envia o placar pelo site e o adversário deve confirmar ou contestar. É recomendado guardar um print legível do resultado final.</p></div>
+    </article>
+
+    <article class="rule-card">
+      <span>07</span>
+      <div><h2>Provas, contestação e W.O.</h2><p>Problemas de conexão, ausência, resultado divergente ou conduta inadequada devem ser informados na Sala PVP. Prints e outros arquivos podem ser enviados para análise. O W.O. será decidido pela administração com base no histórico e nas provas.</p></div>
+    </article>
+
+    <article class="rule-card">
+      <span>08</span>
+      <div><h2>Pontuação da fase de grupos</h2><p>Vitória vale 3 pontos, empate vale 1 ponto e derrota vale 0. O saldo de gols é o primeiro critério padrão de desempate, salvo regra específica publicada no campeonato.</p></div>
+    </article>
+
+    <article class="rule-card">
+      <span>09</span>
+      <div><h2>Mata-mata</h2><p>Partidas eliminatórias precisam terminar com um vencedor. As configurações de prorrogação, pênaltis ou nova partida devem seguir o que estiver definido na página do campeonato.</p></div>
+    </article>
+
+    <article class="rule-card">
+      <span>10</span>
+      <div><h2>Conduta</h2><p>Ofensas, ameaças, preconceito, fraude, manipulação de resultados e uso indevido de provas podem gerar advertência, derrota administrativa, exclusão do campeonato ou bloqueio da conta.</p></div>
+    </article>
+
+    <article class="rule-card">
+      <span>11</span>
+      <div><h2>Taxa e premiação</h2><p>O valor da inscrição, a premiação, as vagas e as datas são exibidos na página de cada campeonato. Em campeonatos gratuitos, nenhum pagamento é exigido.</p></div>
+    </article>
+
+    <article class="rule-card">
+      <span>12</span>
+      <div><h2>Decisão administrativa</h2><p>A organização poderá analisar chat, resultados, provas e histórico da partida. Casos não previstos serão decididos de forma razoável para preservar a integridade do campeonato.</p></div>
+    </article>
+  </main>
+
+  <aside class="rules-side">
+    <div class="panel">
+      <h2>Resumo rápido</h2>
+      <p>Converse na Sala PVP, confirme o ID EA, jogue em Amistosos Online, envie o placar e guarde uma prova.</p>
+      <a class="btn btn-primary" href="/como-funciona">Ver passo a passo</a>
+    </div>
+    <div class="panel">
+      <h2>Regra específica</h2>
+      <p>A página de cada campeonato pode trazer informações adicionais sobre formato, datas, prêmio e configurações.</p>
+      <a class="btn" href="/campeonatos">Ver campeonatos</a>
+    </div>
+  </aside>
+</section>
+{% endblock %}

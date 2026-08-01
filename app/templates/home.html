@@ -17,16 +17,19 @@
 
       <div class="hero-buttons">
         <a class="btn btn-primary" href="/campeonatos">🏆 Ver campeonatos</a>
-        <a class="btn" href="#beneficios">▶ Como funciona</a>
+        <a class="btn" href="/como-funciona">▶ Como funciona</a>
       </div>
     </div>
 
     <div class="hero-visual">
-      <img
-        class="hero-player"
-        src="/static/hero-player-stadium.png"
-        alt="Jogador do FC26 Arena comemorando em um estádio"
-      >
+      <picture class="hero-picture">
+        <source media="(max-width: 700px)" srcset="/static/hero-player-mobile.png">
+        <img
+          class="hero-player"
+          src="/static/hero-player-desktop.png"
+          alt="Jogador do FC26 Arena comemorando em um estádio"
+        >
+      </picture>
     </div>
   </div>
 </section>
@@ -53,6 +56,31 @@
         </div>
       </a>
     {% endfor %}
+  </div>
+</section>
+
+
+<section class="container section">
+  <div class="pvp-explainer">
+    <div class="pvp-explainer-copy">
+      <span class="eyebrow">SALA EXCLUSIVA PARA CADA CONFRONTO</span>
+      <h2>💬 Cada partida possui uma Sala PVP</h2>
+      <p>
+        Quando o confronto for criado, os dois adversários recebem acesso a uma sala exclusiva.
+        Nela vocês podem conversar, confirmar o horário, conferir o ID EA, adicionar um ao outro
+        e organizar a partida no modo <strong>Amistosos Online</strong>.
+      </p>
+      <div class="pvp-actions">
+        <a class="btn btn-primary" href="/como-funciona">Ver passo a passo</a>
+        <a class="btn" href="/regulamento">Ler regulamento</a>
+      </div>
+    </div>
+    <div class="pvp-mini-steps">
+      <div><strong>1</strong><span>Acesse a Sala PVP</span></div>
+      <div><strong>2</strong><span>Confirme o ID EA</span></div>
+      <div><strong>3</strong><span>Entre em Amistosos Online</span></div>
+      <div><strong>4</strong><span>Envie e confirme o placar</span></div>
+    </div>
   </div>
 </section>
 
