@@ -1,6 +1,96 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% block title %}FC26 Arena{% endblock %}</title><link rel="stylesheet" href="/static/style.css"><script defer src="/static/app.js"></script></head>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#020706">
+  <title>{% block title %}FC26 Arena{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script defer src="/static/app.js"></script>
+</head>
 <body data-open-register="{{ '1' if open_register else '0' }}">
-<nav class="nav"><div class="container navin"><a class="logo" href="/"><span class="logo-mark">A</span>FC26 <span>ARENA</span></a><div class="navlinks"><a href="/" class="active">Início</a><a href="/campeonatos">Campeonatos</a><a href="/ranking">Ranking</a><a href="/times">Times</a><a href="/notificacoes">Notícias</a><a href="/conquistas">Conquistas</a><a href="/suporte">Suporte</a></div><div class="nav-actions">{% if request.session.get('user_id') %}<a class="btn" href="/painel">Meu painel</a><a class="btn btn-primary" href="/sair">Sair</a>{% else %}<a class="btn" href="/login">Entrar</a><button class="btn btn-primary" onclick="openRegister()">Criar conta</button>{% endif %}</div></div></nav>
-{% block content %}{% endblock %}
-<footer class="footer">© 2026 FC26 Arena. Todos os direitos reservados.</footer>
-</body></html>
+  <nav class="nav">
+    <div class="container navin">
+      <a class="logo" href="/">
+        <span class="logo-mark">A</span>
+        <span class="logo-white">FC26</span>
+        <span>ARENA</span>
+      </a>
+
+      <div class="navlinks">
+        <a href="/">Início</a>
+        <a href="/campeonatos">Campeonatos</a>
+        <a href="/ranking">Ranking</a>
+        <a href="/times">Times</a>
+        <a href="/notificacoes">Notificações</a>
+        <a href="/conquistas">Conquistas</a>
+        <a href="/suporte">Suporte</a>
+      </div>
+
+      <div class="nav-actions">
+        {% if request.session.get('user_id') %}
+          <a class="btn" href="/painel">Meu painel</a>
+          <a class="btn btn-primary" href="/sair">Sair</a>
+        {% else %}
+          <a class="btn" href="/login">Entrar</a>
+          <button type="button" class="btn btn-primary" onclick="openRegister()">Criar conta</button>
+        {% endif %}
+      </div>
+
+      <button
+        type="button"
+        class="mobile-menu-button"
+        aria-label="Abrir menu"
+        aria-controls="mobileMenu"
+        aria-expanded="false"
+        onclick="toggleMobileMenu()"
+      >
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <div id="mobileMenuBackdrop" class="mobile-menu-backdrop" onclick="closeMobileMenu()"></div>
+
+  <aside id="mobileMenu" class="mobile-menu" aria-hidden="true">
+    <div class="mobile-menu-head">
+      <div class="mobile-menu-logo">
+        <span class="logo-mark">A</span>
+        <strong>FC26 <span>ARENA</span></strong>
+      </div>
+      <button type="button" aria-label="Fechar menu" onclick="closeMobileMenu()">×</button>
+    </div>
+
+    <nav class="mobile-menu-links">
+      <a href="/" onclick="closeMobileMenu()">🏠 Início</a>
+      <a href="/campeonatos" onclick="closeMobileMenu()">🏆 Campeonatos</a>
+      <a href="/ranking" onclick="closeMobileMenu()">📊 Ranking</a>
+      <a href="/times" onclick="closeMobileMenu()">👥 Times</a>
+      <a href="/notificacoes" onclick="closeMobileMenu()">🔔 Notificações</a>
+      <a href="/conquistas" onclick="closeMobileMenu()">🏅 Conquistas</a>
+      <a href="/suporte" onclick="closeMobileMenu()">💬 Suporte</a>
+
+      <div class="mobile-menu-separator"></div>
+
+      {% if request.session.get('user_id') %}
+        <a href="/painel" onclick="closeMobileMenu()">🎮 Meu painel</a>
+        <a class="mobile-menu-danger" href="/sair">🚪 Sair</a>
+      {% else %}
+        <a href="/login" onclick="closeMobileMenu()">🔐 Entrar</a>
+        <button type="button" class="mobile-menu-register" onclick="closeMobileMenu();openRegister()">
+          Criar conta grátis
+        </button>
+      {% endif %}
+
+      {% if request.session.get('admin') %}
+        <div class="mobile-menu-separator"></div>
+        <a href="/admin" onclick="closeMobileMenu()">⚙️ Administração</a>
+      {% endif %}
+    </nav>
+  </aside>
+
+  {% block content %}{% endblock %}
+
+  <footer class="footer">© 2026 FC26 Arena. Todos os direitos reservados.</footer>
+</body>
+</html>

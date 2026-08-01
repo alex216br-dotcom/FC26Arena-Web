@@ -39,265 +39,57 @@
 @media(max-width:1200px){.admin-kpis{grid-template-columns:repeat(3,1fr)}}@media(max-width:900px){.admin-shell{grid-template-columns:1fr}.admin-sidebar{position:static;height:auto}.admin-sidebar nav{grid-template-columns:repeat(3,1fr)}.admin-main{padding:22px}.admin-two-columns{grid-template-columns:1fr}.admin-kpis{grid-template-columns:repeat(2,1fr)}}@media(max-width:620px){.admin-sidebar nav{grid-template-columns:1fr 1fr}.admin-header,.draw-card{display:block}.admin-header .btn,.draw-card .admin-actions{margin-top:14px}.admin-kpis{grid-template-columns:1fr}.admin-form-grid{grid-template-columns:1fr}.span-2{grid-column:auto}.admin-filter{grid-template-columns:1fr}.admin-main{padding:16px}}
 
 
-/* Hero image update */
-.hero-art{display:flex;align-items:flex-end;justify-content:center}
-.hero-player{
-  width:min(62%,780px);
-  max-width:100%;
-  height:auto;
-  object-fit:contain;
-  filter: drop-shadow(0 0 28px rgba(57,255,106,.25));
-}
-@media (max-width: 1000px){
-  .hero-art{justify-content:center}
-  .hero-player{width:min(88%,560px)}
-}
-@media (max-width: 640px){
-  .hero-player{width:min(96%,420px)}
+/* ===== Ajuste visual geral da nova imagem ===== */
+.fc-hero-player,
+.hero-player,
+.hero-art img,
+.hero-image img,
+.hero-visual img{
+  width: 100%;
+  max-width: 620px;
+  height: auto;
+  object-fit: contain;
+  object-position: center bottom;
+  display:block;
+  margin: 0 auto;
 }
 
-
-/* ===== V6.1 polido ===== */
-:root{
-  --green-1:#39ff6a;
-  --green-2:#15d84f;
-  --bg-soft:#07130d;
-  --card:#0c1712;
-  --line:rgba(57,255,106,.16);
-}
-
-body{
-  background:
-    radial-gradient(circle at 20% 10%, rgba(57,255,106,.08), transparent 30%),
-    radial-gradient(circle at 80% 20%, rgba(57,255,106,.06), transparent 28%),
-    linear-gradient(180deg,#030805 0%,#06100b 100%);
-}
-
-.hero-premium{
-  position:relative;
-  overflow:hidden;
-  border-bottom:1px solid var(--line);
-}
-
-.hero-premium::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:
-    radial-gradient(circle at 35% 30%, rgba(57,255,106,.10), transparent 25%),
-    radial-gradient(circle at 70% 25%, rgba(57,255,106,.08), transparent 22%);
-  pointer-events:none;
-}
-
-.hero-grid, .hero{
-  position:relative;
-  z-index:1;
-}
-
-.hero-content h1, .hero-title, .hero-text h1{
-  line-height:.92;
-  letter-spacing:-1.5px;
-  text-shadow:0 10px 30px rgba(0,0,0,.28);
-}
-
-.hero-content p, .hero-text p{
-  max-width:640px;
-  color:#d8e5dc;
-  font-size:1.08rem;
-}
-
-.hero-player{
-  width:min(68%,780px);
-  max-height:760px;
-  object-fit:contain;
-  filter: drop-shadow(0 0 30px rgba(57,255,106,.18)) drop-shadow(0 18px 35px rgba(0,0,0,.35));
-}
-
-.hero-art{
+.hero-art,
+.hero-image,
+.hero-visual{
   display:flex;
-  align-items:flex-end;
   justify-content:center;
-  min-height:520px;
+  align-items:flex-end;
+  overflow:hidden;
 }
 
-.hero-subcta{
-  display:flex;
-  gap:12px;
-  flex-wrap:wrap;
-  margin:10px auto 0 auto;
-  max-width:1200px;
-  padding:0 20px 24px 20px;
-}
-.hero-subcta span{
-  background:rgba(10,20,15,.85);
-  border:1px solid var(--line);
-  border-radius:999px;
-  padding:10px 14px;
-  color:#e9fff0;
-  font-size:.95rem;
-  box-shadow:0 8px 18px rgba(0,0,0,.18);
-}
-
-.card, .feature-card, .championship-card, .stat-card, .panel, .box{
-  backdrop-filter: blur(8px);
-  box-shadow:0 12px 30px rgba(0,0,0,.18);
-  border:1px solid var(--line);
-}
-
-button, .btn, .button, a.btn{
-  transition:transform .18s ease, box-shadow .18s ease, background .18s ease;
-}
-button:hover, .btn:hover, .button:hover, a.btn:hover{
-  transform:translateY(-2px);
-  box-shadow:0 10px 22px rgba(57,255,106,.18);
-}
-
-@media (max-width: 1100px){
-  .hero-art{
-    min-height:420px;
-  }
-  .hero-player{
-    width:min(82%,620px);
-    max-height:560px;
-  }
-}
-
-@media (max-width: 768px){
-  .hero-premium{
-    padding-bottom:10px;
-  }
-  .hero-content h1, .hero-title, .hero-text h1{
-    font-size: clamp(2.5rem, 10vw, 4.2rem) !important;
-    line-height:.94;
-  }
-  .hero-content p, .hero-text p{
-    font-size:1rem;
-  }
-  .hero-art{
-    min-height:300px;
-    margin-top:10px;
-  }
-  .hero-player{
-    width:min(96%,430px);
-    max-height:380px;
-  }
-  .hero-subcta{
-    padding:0 16px 16px 16px;
-    gap:8px;
-  }
-  .hero-subcta span{
-    font-size:.84rem;
-    padding:8px 12px;
-  }
-}
-
-@media (max-width: 520px){
-  .hero-player{
-    width:min(98%,360px);
-    max-height:320px;
-  }
-  .hero-content p, .hero-text p{
-    max-width:100%;
-  }
-}
-
-
-/* ===== Correção mobile: imagem centralizada e opções visíveis ===== */
-@media (max-width: 768px){
+/* ===== Ajuste mobile: mostrar opções e centralizar imagem ===== */
+@media (max-width: 900px){
   .hero,
   .hero-grid,
+  .hero-wrapper,
   .hero-section,
-  .hero-wrapper{
+  .home-hero{
     display:flex !important;
     flex-direction:column !important;
     align-items:stretch !important;
+    gap: 18px !important;
   }
 
   .hero-content,
-  .hero-text{
+  .hero-text,
+  .hero-left,
+  .hero-copy{
     order:1 !important;
-    position:relative !important;
-    z-index:3 !important;
-  }
-
-  .hero-subcta{
-    order:2 !important;
-    position:relative !important;
-    z-index:3 !important;
-  }
-
-  .hero-art,
-  .hero-image,
-  .hero-visual{
-    order:3 !important;
     width:100% !important;
-    min-height:auto !important;
-    height:auto !important;
-    display:flex !important;
-    justify-content:center !important;
-    align-items:flex-end !important;
-    margin:18px auto 0 auto !important;
-    overflow:hidden !important;
-    position:relative !important;
-    z-index:1 !important;
-  }
-
-  .hero-player,
-  .hero-art img,
-  .hero-image img,
-  .hero-visual img{
-    display:block !important;
-    width:86% !important;
-    max-width:300px !important;
-    max-height:280px !important;
-    height:auto !important;
-    object-fit:contain !important;
-    object-position:center bottom !important;
-    margin:0 auto !important;
-    transform:none !important;
-  }
-
-  .hero-premium,
-  .hero-section{
-    overflow:hidden !important;
-  }
-
-  .hero-content h1,
-  .hero-title,
-  .hero-text h1{
-    font-size: clamp(2.4rem, 10vw, 4rem) !important;
-    line-height:.96 !important;
-    margin-bottom:14px !important;
-  }
-
-  .hero-content p,
-  .hero-text p{
-    margin-bottom:16px !important;
-  }
-
-  /* opções/cards não podem ficar atrás da imagem */
-  .features,
-  .features-grid,
-  .hero-features,
-  .hero-cards,
-  .quick-features,
-  .stats-grid,
-  .cards-grid{
     position:relative !important;
     z-index:4 !important;
   }
 
-  .feature-card,
-  .card,
-  .quick-feature{
-    position:relative !important;
-    z-index:4 !important;
-  }
-
-  /* botões do topo */
   .hero-actions,
   .cta-row,
   .button-row{
+    order:2 !important;
     display:grid !important;
     grid-template-columns:1fr 1fr !important;
     gap:12px !important;
@@ -305,26 +97,86 @@ button:hover, .btn:hover, .button:hover, a.btn:hover{
     z-index:4 !important;
   }
 
-  .hero-actions .btn,
-  .cta-row .btn,
-  .button-row .btn,
   .hero-actions a,
+  .hero-actions .btn,
   .cta-row a,
-  .button-row a{
+  .cta-row .btn,
+  .button-row a,
+  .button-row .btn{
     width:100% !important;
     text-align:center !important;
     justify-content:center !important;
   }
+
+  .hero-features,
+  .features,
+  .features-grid,
+  .quick-features,
+  .cards-grid{
+    order:3 !important;
+    position:relative !important;
+    z-index:4 !important;
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:12px !important;
+  }
+
+  .hero-art,
+  .hero-image,
+  .hero-visual,
+  .hero-right{
+    order:4 !important;
+    width:100% !important;
+    display:flex !important;
+    justify-content:center !important;
+    align-items:flex-end !important;
+    overflow:hidden !important;
+    margin-top:10px !important;
+    min-height:auto !important;
+    height:auto !important;
+    position:relative !important;
+    z-index:1 !important;
+  }
+
+  .fc-hero-player,
+  .hero-player,
+  .hero-art img,
+  .hero-image img,
+  .hero-visual img{
+    width:88% !important;
+    max-width:340px !important;
+    max-height:300px !important;
+    object-fit:contain !important;
+    object-position:center bottom !important;
+    margin:0 auto !important;
+    transform:none !important;
+  }
+
+  .feature-card,
+  .card,
+  .quick-feature{
+    position:relative !important;
+    z-index:5 !important;
+    width:100% !important;
+  }
 }
 
-@media (max-width: 520px){
+@media (max-width: 560px){
+  .fc-hero-player,
   .hero-player,
   .hero-art img,
   .hero-image img,
   .hero-visual img{
     width:82% !important;
-    max-width:240px !important;
-    max-height:220px !important;
+    max-width:260px !important;
+    max-height:230px !important;
+  }
+
+  .hero-content h1,
+  .hero-title,
+  .hero-text h1{
+    font-size: clamp(2.2rem, 10vw, 3.8rem) !important;
+    line-height: .95 !important;
   }
 
   .hero-actions,
@@ -333,15 +185,103 @@ button:hover, .btn:hover, .button:hover, a.btn:hover{
     grid-template-columns:1fr 1fr !important;
     gap:10px !important;
   }
+}
 
-  .hero-content,
-  .hero-text{
-    padding-bottom:0 !important;
+
+/* V6.1 — menu mobile + imagem do estádio inteira e centralizada */
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+body.menu-open{overflow:hidden}
+.logo-white{color:#fff!important}
+
+.mobile-menu-button{
+  display:none;width:44px;height:44px;flex:0 0 auto;padding:10px;
+  border:1px solid #2a4939;border-radius:9px;background:#07120e;cursor:pointer
+}
+.mobile-menu-button span{display:block;height:2px;margin:5px 0;border-radius:4px;background:#fff;transition:.2s}
+.mobile-menu-button[aria-expanded="true"] span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.mobile-menu-button[aria-expanded="true"] span:nth-child(2){opacity:0}
+.mobile-menu-button[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+
+.mobile-menu-backdrop{display:none;position:fixed;inset:72px 0 0;background:#000b;z-index:68;backdrop-filter:blur(3px)}
+.mobile-menu-backdrop.open{display:block}
+.mobile-menu{
+  position:fixed;top:72px;right:0;z-index:69;width:min(370px,90vw);
+  height:calc(100dvh - 72px);overflow-y:auto;
+  padding-bottom:max(24px,env(safe-area-inset-bottom));
+  border-left:1px solid #28613a;background:linear-gradient(160deg,#0b1813,#020706 76%);
+  box-shadow:-28px 0 90px #000c;transform:translateX(105%);transition:transform .25s ease
+}
+.mobile-menu.open{transform:translateX(0)}
+.mobile-menu-head{display:flex;align-items:center;justify-content:space-between;padding:18px;border-bottom:1px solid #193126}
+.mobile-menu-head button{width:38px;height:38px;border:1px solid #2a4939;border-radius:50%;background:#0b1813;color:#fff;font-size:25px;cursor:pointer}
+.mobile-menu-logo{display:flex;align-items:center;gap:9px}.mobile-menu-logo strong{font-size:19px}.mobile-menu-logo strong span{color:var(--green)}
+.mobile-menu-links{display:grid;padding:13px}
+.mobile-menu-links a,.mobile-menu-register{
+  display:flex;align-items:center;gap:10px;width:100%;padding:15px 13px;
+  border:0;border-bottom:1px solid #152b21;background:transparent;color:#f1f7f3;
+  text-align:left;font:inherit;font-weight:800;cursor:pointer
+}
+.mobile-menu-links a:hover{border-radius:8px;background:#0b2514;color:var(--green)}
+.mobile-menu-separator{height:1px;margin:10px 4px;background:#284337}
+.mobile-menu-register{justify-content:center;margin-top:10px;border-radius:8px;background:linear-gradient(135deg,var(--green),#25dc49);color:#031006}
+.mobile-menu-danger{color:#ffaaa8!important}
+
+.hero-stadium{min-height:auto;background:radial-gradient(circle at 70% 35%,#174625 0,#07140d 34%,#020706 72%)}
+.hero-stadium .hero-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(420px,.95fr);min-height:590px;align-items:center;gap:30px}
+.hero-stadium .hero-copy{position:relative;z-index:3}
+.hero-visual{
+  position:relative;z-index:2;display:flex;align-items:center;justify-content:center;
+  width:100%;min-width:0;padding:20px 0
+}
+.hero-stadium .hero-player{
+  position:static!important;display:block!important;width:100%!important;max-width:700px!important;
+  height:auto!important;max-height:500px!important;margin:0 auto!important;
+  object-fit:contain!important;object-position:center!important;transform:none!important;
+  border-radius:14px;filter:drop-shadow(0 18px 42px #000b) drop-shadow(0 0 24px #20ff4a22)
+}
+
+@media(max-width:1000px){
+  .navlinks,.nav-actions{display:none!important}
+  .mobile-menu-button{display:block}
+  .navin{justify-content:space-between;gap:12px}
+  .logo{margin-right:auto}
+
+  .hero-stadium .hero-grid{grid-template-columns:1fr;min-height:auto;gap:18px}
+  .hero-stadium .hero-copy{padding:42px 0 0}
+  .hero-visual{padding:0 0 32px}
+  .hero-stadium .hero-player{width:min(100%,720px)!important;max-height:none!important}
+}
+
+@media(max-width:640px){
+  .nav,.navin{height:66px}
+  .mobile-menu{top:66px;height:calc(100dvh - 66px)}
+  .mobile-menu-backdrop{inset:66px 0 0}
+  .mobile-menu-button{width:42px;height:42px}
+  .logo{gap:7px;font-size:clamp(18px,6vw,23px)}
+  .logo-mark{width:29px;height:35px;font-size:12px}
+
+  .hero-stadium .hero-copy{padding:34px 0 0}
+  .hero-stadium .hero-copy h1{font-size:clamp(40px,11.8vw,54px);line-height:.95;letter-spacing:-1.8px}
+  .hero-stadium .hero-copy p{font-size:16px;line-height:1.5}
+
+  .feature-strip{grid-template-columns:1fr!important;gap:10px}
+  .feature-pill{min-height:66px;padding:14px}
+  .hero-buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .hero-buttons .btn{width:100%;min-width:0;padding:13px 9px;white-space:normal;text-align:center}
+
+  .hero-visual{width:100%;padding:4px 0 26px;overflow:visible}
+  .hero-stadium .hero-player{
+    width:100%!important;max-width:100%!important;height:auto!important;max-height:none!important;
+    object-fit:contain!important;object-position:center!important;border-radius:10px
   }
 
-  .feature-card,
-  .card,
-  .quick-feature{
-    margin-bottom:12px !important;
-  }
+  .stats{grid-template-columns:1fr}
+  .stat{border-right:0;border-bottom:1px solid #172b22}
+  .cards,.benefits,.grid-2{grid-template-columns:1fr}
+  .choice-grid.platforms{grid-template-columns:repeat(2,1fr)}
+}
+
+@media(max-width:400px){
+  .hero-buttons{grid-template-columns:1fr}
+  .hero-stadium .hero-copy h1{font-size:38px}
 }

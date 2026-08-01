@@ -82,3 +82,11 @@ use um banco novo na primeira publicação.
 - Inclusão manual de jogador em campeonato 1x1.
 - Gestão central de jogadores, contatos, ID EA, geração, plataforma e bloqueio.
 - Gestão de partidas, horários, placares e status.
+
+
+## Atualização mobile e imagem principal
+
+- Menu hambúrguer com acesso a Campeonatos, Ranking, Times, Notificações, Conquistas, Suporte e Meu painel.
+- A imagem do jogador no estádio agora é usada de verdade no hero.
+- No celular, a imagem é exibida inteira, centralizada e sem ficar atrás das opções.
+- Os botões e cartões do hero permanecem visíveis antes da imagem.
