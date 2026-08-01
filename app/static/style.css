@@ -8,3 +8,5 @@ a{text-decoration:none;color:inherit}.container{width:min(1160px,92%);margin:aut
 .form{width:min(680px,92%);margin:42px auto}.field{margin:15px 0}.field label{display:block;font-weight:900;margin-bottom:7px}.field input,.field select,.field textarea{width:100%;padding:14px;border:1px solid #35543c;border-radius:10px;background:#071009;color:white;font-size:16px}.field textarea{min-height:95px}
 .alert{padding:13px;border-radius:10px;background:#4a1717;color:#ffc7c7;margin:12px 0}.success{background:#123a1a;color:#c9ffd0}.badge{display:inline-block;padding:5px 10px;border-radius:99px;background:#173c20;color:#7cff8a;font-size:13px;font-weight:900}.muted{color:var(--muted)}.footer{text-align:center;color:var(--muted);padding:36px}
 @media(max-width:780px){.hero,.two,.grid{grid-template-columns:1fr}.links a:not(.btn){display:none}.hero{padding-top:38px}.hero h1{font-size:58px}.section h2{font-size:29px}}
+
+.chat{max-height:360px;overflow:auto}.chat p{border-bottom:1px solid var(--line);padding:8px}textarea{width:100%;min-height:90px;background:#071009;color:white;border:1px solid #35543c;border-radius:10px;padding:12px}
