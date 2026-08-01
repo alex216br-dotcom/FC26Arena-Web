@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block content %}
+<section class="container hero"><div><b class="accent">TEMPORADA BETA INAUGURAL</b><h1>FC26<br><span class="accent">ARENA</span></h1>
+<p class="lead">Campeonato online para PlayStation 5, Xbox Series X|S e PC. Inscrição gratuita, fase de grupos, mata-mata e ranking oficial.</p>
+<a class="btn primary" href="/inscricao">🚀 GARANTIR MINHA VAGA</a></div>
+<div class="card"><p>PRÊMIO DO CAMPEÃO</p><div class="prize">R$ {{ prize }}</div><p>Pago via Pix após a final.</p>
+<div class="progress"><span style="width:{{ (registered/max_players*100) if max_players else 0 }}%"></span></div><h3>{{ registered }}/{{ max_players }} inscritos</h3><p>🔥 Restam {{ remaining }} vagas</p></div></section>
+<section class="container section"><div class="grid"><div class="card stat"><strong>32</strong>vagas</div><div class="card stat"><strong>8</strong>grupos</div><div class="card stat"><strong>1</strong>campeão</div></div></section>
+<section class="container section"><h2>Ranking atual</h2><div class="table"><table><tr><th>#</th><th>Jogador</th><th>Plataforma</th><th>Pts</th></tr>
+{% for p in players[:10] %}<tr><td>{{ loop.index }}</td><td>{{ p.name }}</td><td>{{ p.platform }}</td><td>{{ p.points }}</td></tr>{% else %}<tr><td colspan="4">Ainda não há inscritos.</td></tr>{% endfor %}</table></div></section>
+{% endblock %}

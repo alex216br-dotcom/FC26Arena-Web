@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block content %}<div class="card form"><h2>🆓 Inscrição gratuita</h2>
+{% for e in errors %}<div class="alert">{{ e }}</div>{% endfor %}<form method="post">
+<div class="field"><label>Nome</label><input name="name" required></div><div class="field"><label>WhatsApp com DDD</label><input name="whatsapp" required></div>
+<div class="field"><label>ID EA Sports</label><input name="ea_id" required></div><div class="field"><label>Plataforma</label><select name="platform" required><option>PlayStation 5</option><option>Xbox Series X|S</option><option>PC</option></select></div>
+<div class="field"><label>Crie uma senha</label><input type="password" name="password" minlength="6" required></div><button class="btn primary" style="width:100%">🚀 FINALIZAR INSCRIÇÃO</button></form></div>{% endblock %}

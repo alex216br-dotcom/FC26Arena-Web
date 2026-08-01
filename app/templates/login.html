@@ -1,0 +1,2 @@
+{% extends "base.html" %}{% block content %}<div class="card form"><h2>Entrar</h2>{% if error %}<div class="alert">{{ error }}</div>{% endif %}
+<form method="post"><div class="field"><label>WhatsApp ou ID EA</label><input name="identifier" required></div><div class="field"><label>Senha</label><input type="password" name="password" required></div><button class="btn primary" style="width:100%">Entrar</button></form></div>{% endblock %}
