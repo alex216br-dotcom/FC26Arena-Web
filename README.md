@@ -1,44 +1,29 @@
-# FC26 Arena Web Pro V1
+# FC26 Arena Web V3 Definitiva
 
-Site completo para inscrição e administração do FC26 Arena.
+Versão pronta para lançamento da temporada beta.
 
-## Recursos
-- Página inicial responsiva.
-- Cadastro de jogadores.
-- Login e painel do jogador.
-- Ranking e classificação.
-- Painel administrativo.
-- Abrir/fechar inscrições.
-- Sortear grupos e gerar partidas.
-- Registrar placares.
-- Importar `jogadores.json` do bot Telegram.
-- SQLite local e PostgreSQL no Railway.
+## Incluído
+- Duas divisões independentes: nova e antiga geração.
+- Inscrição, login e painel do jogador.
+- Contadores e premiações separados.
+- Página inicial com como funciona, últimos inscritos e resultados.
+- Ranking completo por divisão.
+- Sorteio de grupos e geração de partidas.
+- Geração inicial do mata-mata.
+- Administração de jogadores, datas, avisos e placares.
+- Importação de jogadores do Telegram.
+- PostgreSQL no Railway.
 
-## Estrutura correta no GitHub
-A pasta `app` deve aparecer diretamente na raiz do repositório:
-
-```
-app/
-requirements.txt
-Procfile
-railway.json
-README.md
-```
-
-## Railway
-Crie PostgreSQL no mesmo projeto e adicione no serviço web:
-
-```
+## Variáveis Railway
 DATABASE_URL=${{Postgres.DATABASE_URL}}
-SECRET_KEY=uma-chave-bem-grande
+SECRET_KEY=uma-chave-longa-e-aleatoria
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=sua-senha
+ADMIN_PASSWORD=sua-senha-forte
 GROUP_URL=link-do-grupo
 MAX_PLAYERS=32
-CHAMPION_PRIZE=50
-```
+CHAMPION_PRIZE_NEW=50
+CHAMPION_PRIZE_OLD=50
 
-Depois gere um domínio em Settings > Networking.
-
-## Admin
-Acesse `/admin/login`.
+## Observação
+A geração automática incluída cria a primeira rodada do mata-mata com os classificados dos grupos.
+O avanço automático entre oitavas, quartas, semifinais e final deverá ser acionado em atualização posterior ou administrado pelo painel na temporada beta.
