@@ -373,3 +373,27 @@ body.menu-open{overflow:hidden}
   .hero-picture{max-width:370px}
   .hero-stadium .hero-player{max-width:370px!important}
 }
+
+
+/* Correções administrativas estáveis */
+.admin-switcher{
+  display:flex;align-items:center;justify-content:space-between;gap:18px;
+  border-color:#2a713a;background:linear-gradient(135deg,#0b2514,#07110e)
+}
+.admin-switcher strong,.admin-switcher small{display:block}
+.admin-switcher form{display:flex;gap:8px;min-width:min(620px,100%)}
+.admin-switcher select{
+  flex:1;min-width:250px;padding:12px;border:1px solid #376048;
+  border-radius:7px;background:#07110e;color:#fff
+}
+.admin-save-area{padding-top:5px}
+.admin-save-area .btn{min-width:240px}
+@media(max-width:800px){
+  .admin-switcher{display:block}
+  .admin-switcher form{margin-top:13px;min-width:0}
+}
+@media(max-width:520px){
+  .admin-switcher form{display:grid}
+  .admin-switcher select{width:100%;min-width:0}
+  .admin-save-area .btn{width:100%;min-width:0}
+}

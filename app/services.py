@@ -5,8 +5,8 @@ from itertools import combinations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .models import (
-    Achievement, AuditLog, Match, Registration, TeamMember, Tournament,
-    User, UserAchievement
+    Achievement, AuditLog, Evidence, Match, MatchMessage, Registration,
+    Report, TeamMember, Tournament, User, UserAchievement
 )
 
 def slugify(value: str) -> str:
@@ -116,6 +116,51 @@ def sorted_group(registrations: list[Registration]) -> list[Registration]:
         reverse=True,
     )
 
+
+def clear_tournament_matches(db: Session, tournament_id: int):
+    """
+    Apaga as partidas de um campeonato na ordem correta para PostgreSQL.
+    Mensagens, provas e denúncias das Salas PVP precisam ser removidas antes
+    das partidas devido às chaves estrangeiras.
+    """
+    match_ids = list(db.scalars(
+        select(Match.id).where(Match.tournament_id == tournament_id)
+    ).all())
+
+    if match_ids:
+        db.query(MatchMessage).filter(
+            MatchMessage.match_id.in_(match_ids)
+        ).delete(synchronize_session=False)
+
+        db.query(Evidence).filter(
+            Evidence.match_id.in_(match_ids)
+        ).delete(synchronize_session=False)
+
+        db.query(Report).filter(
+            Report.match_id.in_(match_ids)
+        ).delete(synchronize_session=False)
+
+        db.query(Match).filter(
+            Match.id.in_(match_ids)
+        ).delete(synchronize_session=False)
+
+    registrations = db.scalars(
+        select(Registration).where(Registration.tournament_id == tournament_id)
+    ).all()
+
+    for registration in registrations:
+        registration.group_name = None
+        registration.points = 0
+        registration.played = 0
+        registration.wins = 0
+        registration.draws = 0
+        registration.losses = 0
+        registration.goals_for = 0
+        registration.goals_against = 0
+
+    db.flush()
+
+
 def generate_groups(db: Session, tournament: Tournament):
     if tournament.group_size < 2:
         raise ValueError("O tamanho do grupo precisa ser pelo menos 2.")
@@ -130,12 +175,7 @@ def generate_groups(db: Session, tournament: Tournament):
         )
 
     # Recria o sorteio sem apagar inscrições.
-    db.query(Match).filter(Match.tournament_id == tournament.id).delete()
-    for registration in approved:
-        registration.group_name = None
-        registration.points = registration.played = registration.wins = 0
-        registration.draws = registration.losses = 0
-        registration.goals_for = registration.goals_against = 0
+    clear_tournament_matches(db, tournament.id)
 
     random.shuffle(approved)
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
