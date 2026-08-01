@@ -1,1 +1,68 @@
-{% extends "base.html" %}{% block content %}<div class="form-card"><h1>Pagamento Pix</h1><p>Valor: <strong>R$ {{ '%.2f'|format(payment.amount) }}</strong></p><p>Status: <span class="badge">{{ payment.status }}</span></p>{% if pix_key %}<div class="panel"><p>Chave Pix:</p><strong>{{ pix_key }}</strong></div>{% else %}<div class="alert">A chave Pix ainda não foi configurada.</div>{% endif %}<p>Após o pagamento, aguarde a confirmação automática ou administrativa.</p></div>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Pagamento — FC26 Arena{% endblock %}
+{% block content %}
+{% if payment.status == 'pending' %}
+  <meta http-equiv="refresh" content="5">
+{% endif %}
+
+<section class="container section">
+  <div class="payment-card">
+    <span class="eyebrow">INSCRIÇÃO #{{ payment.registration.id }}</span>
+    <h1>Pagamento Pix</h1>
+    <p class="payment-tournament">{{ payment.registration.tournament.name }}</p>
+
+    <div class="payment-status-box payment-status-{{ payment.status }}">
+      {% if payment.status == 'approved' %}
+        <span class="payment-status-icon">✅</span>
+        <div>
+          <strong>Pagamento aprovado</strong>
+          <p>Sua inscrição foi confirmada e você já está participando do campeonato.</p>
+        </div>
+      {% elif payment.status == 'rejected' %}
+        <span class="payment-status-icon">❌</span>
+        <div>
+          <strong>Pagamento recusado</strong>
+          <p>Entre em contato com o suporte para verificar o pagamento.</p>
+        </div>
+      {% else %}
+        <span class="payment-status-icon payment-pulse">⏳</span>
+        <div>
+          <strong>Aguardando aprovação</strong>
+          <p>Esta página verifica automaticamente o status a cada 5 segundos.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="payment-details">
+      <div><span>Valor</span><strong>R$ {{ '%.2f'|format(payment.amount) }}</strong></div>
+      <div><span>Pagamento</span><strong>{{ payment.status }}</strong></div>
+      <div><span>Inscrição</span><strong>{{ payment.registration.status }}</strong></div>
+    </div>
+
+    {% if payment.status == 'pending' %}
+      {% if pix_key %}
+        <div class="panel pix-panel">
+          <p>Chave Pix</p>
+          <strong class="pix-value">{{ pix_key }}</strong>
+        </div>
+      {% else %}
+        <div class="alert">A chave Pix ainda não foi configurada.</div>
+      {% endif %}
+
+      <p class="muted">
+        Após realizar o pagamento, aguarde a confirmação administrativa.
+        Você também pode atualizar manualmente esta página.
+      </p>
+      <div class="payment-actions">
+        <a class="btn btn-primary" href="/pagamento/{{ payment.id }}">🔄 Atualizar status</a>
+        <a class="btn" href="/painel">Voltar ao painel</a>
+      </div>
+    {% else %}
+      <div class="payment-actions">
+        <a class="btn btn-primary" href="/painel">Abrir meu painel</a>
+        <a class="btn" href="/campeonato/{{ payment.registration.tournament.slug }}">Ver campeonato</a>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

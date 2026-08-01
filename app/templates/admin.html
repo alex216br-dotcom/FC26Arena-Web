@@ -85,11 +85,46 @@
 
     <div class="admin-two-columns">
       <section id="pagamentos" class="admin-card">
-        <div class="admin-section-head"><h2>Pagamentos recentes</h2></div>
-        {% for p in payments %}
-          <div class="admin-list-item"><div><strong>#{{ p.id }} · {{ p.registration.tournament.name }}</strong><small>R$ {{ '%.2f'|format(p.amount) }} · {{ p.status }}</small></div>
-          {% if p.status == 'pending' %}<form method="post" action="/admin/pagamento/{{ p.id }}"><button class="btn btn-small btn-primary" name="status" value="approved">Aprovar</button></form>{% endif %}</div>
-        {% else %}<p class="muted">Nenhum pagamento.</p>{% endfor %}
+        <div class="admin-section-head">
+          <div>
+            <h2>Pagamentos</h2>
+            <p>A aprovação atualiza o pagamento e confirma a inscrição do jogador.</p>
+          </div>
+        </div>
+
+        <div class="admin-payment-list">
+          {% for p in payments %}
+            <article class="admin-payment-row">
+              <div class="admin-payment-main">
+                <strong>#{{ p.id }} · {{ registration_label(p.registration) }}</strong>
+                <small>
+                  {{ p.registration.tournament.name }}
+                  · Inscrição #{{ p.registration.id }}
+                  · R$ {{ '%.2f'|format(p.amount) }}
+                </small>
+              </div>
+
+              <div class="admin-payment-states">
+                <span>Pagamento: <b class="status status-{{ p.status }}">{{ p.status }}</b></span>
+                <span>Inscrição: <b class="status status-{{ p.registration.status }}">{{ p.registration.status }}</b></span>
+              </div>
+
+              <form class="admin-payment-actions" method="post" action="/admin/pagamento/{{ p.id }}">
+                {% if p.status != 'approved' %}
+                  <button type="submit" class="btn btn-small btn-primary" name="status" value="approved">✅ Aprovar</button>
+                {% endif %}
+                {% if p.status != 'pending' %}
+                  <button type="submit" class="btn btn-small" name="status" value="pending">⏳ Pendente</button>
+                {% endif %}
+                {% if p.status != 'rejected' %}
+                  <button type="submit" class="btn btn-small btn-danger" name="status" value="rejected">❌ Recusar</button>
+                {% endif %}
+              </form>
+            </article>
+          {% else %}
+            <p class="muted">Nenhum pagamento registrado.</p>
+          {% endfor %}
+        </div>
       </section>
 
       <section id="denuncias" class="admin-card">

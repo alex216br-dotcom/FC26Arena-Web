@@ -102,3 +102,13 @@ use um banco novo na primeira publicação.
 - Instruções para realizar a partida em Amistosos Online.
 - Fluxo de envio, confirmação, contestação, provas e W.O.
 - Sala PVP reformulada com instruções antes da partida.
+
+
+## Correção do pagamento administrativo
+
+- Aprovar pagamento sincroniza `payments.status`, `registrations.payment_status` e `registrations.status`.
+- Recusar ou voltar para pendente também sincroniza os três estados.
+- O jogador recebe uma notificação no site.
+- A página Pix atualiza automaticamente a cada 5 segundos enquanto estiver pendente.
+- O painel mostra lado a lado o status do pagamento e da inscrição.
+- A página de pagamento usa `Cache-Control: no-store` para não exibir dados antigos.

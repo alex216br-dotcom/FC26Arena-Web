@@ -24,7 +24,8 @@ from .models import (
 from .security import hash_password, token_urlsafe, verify_password
 from .services import (
     audit, clear_tournament_matches, entry_name, generate_groups,
-    process_confirmed_result, seed_achievements, sorted_group, unique_slug,
+    process_confirmed_result, registration_users, seed_achievements,
+    sorted_group, unique_slug,
 )
 
 BASE = Path(__file__).resolve().parent
@@ -129,6 +130,44 @@ def registration_ea_id(registration: Registration | None) -> str:
     if registration is None or not registration.user:
         return "—"
     return registration.user.ea_id or "—"
+
+
+def apply_payment_status(
+    db: Session,
+    payment: Payment,
+    status: str,
+) -> tuple[Payment, Registration]:
+    """
+    Mantém o pagamento e a inscrição sempre sincronizados.
+    """
+    normalized_status = status.strip().lower()
+    allowed_statuses = {"pending", "approved", "rejected"}
+
+    if normalized_status not in allowed_statuses:
+        raise ValueError("Status de pagamento inválido.")
+
+    registration = db.get(Registration, payment.registration_id)
+    if not registration:
+        raise ValueError("A inscrição vinculada ao pagamento não existe.")
+
+    payment.status = normalized_status
+
+    if normalized_status == "approved":
+        registration.payment_status = "approved"
+        registration.status = "approved"
+    elif normalized_status == "rejected":
+        registration.payment_status = "rejected"
+        registration.status = "rejected"
+    else:
+        registration.payment_status = "pending"
+        registration.status = "pending"
+
+    db.flush()
+    db.commit()
+    db.refresh(payment)
+    db.refresh(registration)
+    return payment, registration
+
 
 def tournament_registration_counts(db: Session, tournament_id: int) -> dict[str, int]:
     registrations = db.scalars(
@@ -433,10 +472,25 @@ def tournament_register(
 @app.get("/pagamento/{payment_id}", response_class=HTMLResponse)
 def payment_page(payment_id: int, request: Request, db: Session = Depends(get_db)):
     user = require_user(request, db)
-    payment = db.get(Payment, payment_id)
+    payment = db.scalar(
+        select(Payment)
+        .options(
+            selectinload(Payment.registration).selectinload(Registration.tournament),
+            selectinload(Payment.registration).selectinload(Registration.user),
+            selectinload(Payment.registration).selectinload(Registration.team),
+        )
+        .where(Payment.id == payment_id)
+    )
     if not payment or not registration_contains_user(db, payment.registration, user):
         raise HTTPException(404)
-    return templates.TemplateResponse("payment.html", ctx(request, payment=payment))
+
+    response = templates.TemplateResponse(
+        "payment.html",
+        ctx(request, payment=payment),
+    )
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 @app.post("/webhooks/pagamento")
 def payment_webhook(
@@ -452,12 +506,26 @@ def payment_webhook(
     if not payment:
         raise HTTPException(404)
     payment.external_id = external_id
-    payment.status = status
-    if status == "approved":
-        payment.registration.payment_status = "approved"
-        payment.registration.status = "approved"
-    db.commit()
-    return {"ok": True}
+    try:
+        payment, registration = apply_payment_status(db, payment, status)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(400, str(exc))
+
+    if payment.status == "approved":
+        for recipient in registration_users(db, registration):
+            notify_user(
+                db,
+                recipient,
+                "Pagamento aprovado",
+                f"Seu pagamento da inscrição em {registration.tournament.name} foi aprovado.",
+            )
+
+    return {
+        "ok": True,
+        "payment_status": payment.status,
+        "registration_status": registration.status,
+    }
 
 @app.get("/times", response_class=HTMLResponse)
 def teams_page(request: Request, db: Session = Depends(get_db)):
@@ -657,7 +725,16 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     tournaments = db.scalars(select(Tournament).order_by(Tournament.id.desc())).all()
     users = db.scalars(select(User).order_by(User.id.desc())).all()
     registrations = db.scalars(select(Registration).order_by(Registration.id.desc())).all()
-    payments = db.scalars(select(Payment).order_by(Payment.id.desc()).limit(20)).all()
+    payments = db.scalars(
+        select(Payment)
+        .options(
+            selectinload(Payment.registration).selectinload(Registration.tournament),
+            selectinload(Payment.registration).selectinload(Registration.user),
+            selectinload(Payment.registration).selectinload(Registration.team),
+        )
+        .order_by(Payment.id.desc())
+        .limit(50)
+    ).all()
     reports = db.scalars(select(Report).order_by(Report.id.desc()).limit(20)).all()
     tickets = db.scalars(select(SupportTicket).order_by(SupportTicket.id.desc()).limit(20)).all()
     coupons = db.scalars(select(Coupon).order_by(Coupon.id.desc())).all()
@@ -696,6 +773,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         coupons=coupons,
         audits=audits,
         stats=stats,
+        registration_label=registration_label,
         message=request.query_params.get("message"),
     ))
 
@@ -1187,22 +1265,80 @@ def admin_draw_groups(tournament_id: int, request: Request, db: Session = Depend
     audit(db, "draw_groups", "tournament", tournament_id, message)
     return admin_redirect(message, f"/admin/campeonato/{tournament_id}")
 
+
 @app.post("/admin/pagamento/{payment_id}")
-def admin_payment(payment_id: int, request: Request, status: Annotated[str, Form()], db: Session = Depends(get_db)):
+def admin_payment(
+    payment_id: int,
+    request: Request,
+    status: Annotated[str, Form()],
+    db: Session = Depends(get_db),
+):
     require_admin(request)
-    payment = db.get(Payment, payment_id)
+
+    payment = db.scalar(
+        select(Payment)
+        .options(
+            selectinload(Payment.registration).selectinload(Registration.tournament),
+            selectinload(Payment.registration).selectinload(Registration.user),
+            selectinload(Payment.registration).selectinload(Registration.team),
+        )
+        .where(Payment.id == payment_id)
+    )
     if not payment:
-        raise HTTPException(404)
-    payment.status = status
-    if status == "approved":
-        payment.registration.payment_status = "approved"
-        payment.registration.status = "approved"
-    elif status == "rejected":
-        payment.registration.payment_status = "rejected"
-        payment.registration.status = "rejected"
-    db.commit()
-    audit(db, "payment", "payment", payment.id, status)
-    return RedirectResponse("/admin?message=Pagamento atualizado", 303)
+        return admin_redirect("Pagamento não encontrado.", "/admin#pagamentos")
+
+    try:
+        payment, registration = apply_payment_status(db, payment, status)
+    except Exception as exc:
+        db.rollback()
+        return admin_redirect(
+            f"Não foi possível atualizar o pagamento: {exc}",
+            "/admin#pagamentos",
+        )
+
+    if payment.status == "approved":
+        subject = "Pagamento aprovado"
+        body = (
+            f"Seu pagamento da inscrição em "
+            f"{registration.tournament.name} foi aprovado. "
+            f"Sua inscrição está confirmada."
+        )
+    elif payment.status == "rejected":
+        subject = "Pagamento recusado"
+        body = (
+            f"O pagamento da inscrição em "
+            f"{registration.tournament.name} foi recusado. "
+            f"Entre em contato com o suporte se precisar."
+        )
+    else:
+        subject = "Pagamento pendente"
+        body = (
+            f"O pagamento da inscrição em "
+            f"{registration.tournament.name} voltou para análise."
+        )
+
+    for recipient in registration_users(db, registration):
+        notify_user(db, recipient, subject, body)
+
+    audit(
+        db,
+        "payment",
+        "payment",
+        payment.id,
+        (
+            f"payment={payment.status}; "
+            f"registration={registration.status}; "
+            f"registration_id={registration.id}"
+        ),
+    )
+
+    return admin_redirect(
+        (
+            f"Pagamento #{payment.id} atualizado para {payment.status}. "
+            f"Inscrição #{registration.id}: {registration.status}."
+        ),
+        "/admin#pagamentos",
+    )
 
 @app.post("/admin/denuncia/{report_id}")
 def admin_report(report_id: int, request: Request, status: Annotated[str, Form()], db: Session = Depends(get_db)):
