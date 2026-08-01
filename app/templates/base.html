@@ -1,3 +1,6 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FC26 Arena V5</title><link rel="stylesheet" href="/static/style.css"></head><body>
-<nav class="nav"><div class="container navin"><a class="brand" href="/">FC26 <span>ARENA</span></a><div class="links">{% if request.session.get('user_id') %}<a href="/painel">Meu painel</a><a href="/sair">Sair</a>{% else %}<a href="/login">Entrar</a><a class="btn primary" href="/cadastro">Criar conta</a>{% endif %}</div></div></nav>
-<main>{% block content %}{% endblock %}</main><footer class="footer">FC26 Arena V5</footer></body></html>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% block title %}FC26 Arena{% endblock %}</title><link rel="stylesheet" href="/static/style.css"><script defer src="/static/app.js"></script></head>
+<body data-open-register="{{ '1' if open_register else '0' }}">
+<nav class="nav"><div class="container navin"><a class="logo" href="/"><span class="logo-mark">A</span>FC26 <span>ARENA</span></a><div class="navlinks"><a href="/" class="active">Início</a><a href="/campeonatos">Campeonatos</a><a href="/ranking">Ranking</a><a href="/times">Times</a><a href="/notificacoes">Notícias</a><a href="/conquistas">Conquistas</a><a href="/suporte">Suporte</a></div><div class="nav-actions">{% if request.session.get('user_id') %}<a class="btn" href="/painel">Meu painel</a><a class="btn btn-primary" href="/sair">Sair</a>{% else %}<a class="btn" href="/login">Entrar</a><button class="btn btn-primary" onclick="openRegister()">Criar conta</button>{% endif %}</div></div></nav>
+{% block content %}{% endblock %}
+<footer class="footer">© 2026 FC26 Arena. Todos os direitos reservados.</footer>
+</body></html>

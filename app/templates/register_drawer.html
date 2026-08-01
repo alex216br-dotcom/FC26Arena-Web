@@ -1,0 +1,28 @@
+<div id="registerBackdrop" class="drawer-backdrop" onclick="closeRegister()"></div>
+<aside id="registerDrawer" class="register-drawer">
+<button class="drawer-close" onclick="closeRegister()">×</button>
+<div class="drawer-logo"><span class="logo-mark">A</span><h2>FC26 <span>ARENA</span></h2><h3>Criar conta</h3><p class="muted">Junte-se à comunidade FC26 Arena</p></div>
+<div class="steps"><div class="step active"><b>1</b>Dados pessoais</div><div class="step"><b>2</b>Conta</div><div class="step"><b>3</b>Confirmação</div></div>
+{% if register_errors %}<div class="error-box">{% for e in register_errors %}<div>{{ e }}</div>{% endfor %}</div>{% endif %}
+<form method="post" action="/cadastro">
+<div class="field"><label>Nome completo</label><input name="name" placeholder="Digite seu nome completo" required></div>
+<div class="field"><label>WhatsApp</label><input name="whatsapp" placeholder="(41) 99999-9999" required></div>
+<div class="field"><label>E-mail</label><input type="email" name="email" placeholder="seu@email.com"></div>
+<div class="field"><label>ID EA (EA ID)</label><input name="ea_id" placeholder="Ex: SeuID_EA" required></div>
+<div class="field"><label>Geração</label><div class="choice-grid">
+<label class="choice"><input type="radio" name="generation" value="nova" checked><strong>Nova geração</strong><small>PS5 / Xbox Series / PC</small></label>
+<label class="choice"><input type="radio" name="generation" value="antiga"><strong>Antiga geração</strong><small>PS4 / Xbox One</small></label>
+</div></div>
+<div class="field"><label>Plataforma</label><div class="choice-grid platforms">
+<label class="choice" data-generation="nova"><input type="radio" name="platform" value="PlayStation 5" checked><div class="console-icon">🎮</div><small>PlayStation 5</small></label>
+<label class="choice" data-generation="nova"><input type="radio" name="platform" value="Xbox Series X|S"><div class="console-icon">🟢</div><small>Xbox Series</small></label>
+<label class="choice" data-generation="nova"><input type="radio" name="platform" value="PC"><div class="console-icon">🖥️</div><small>PC</small></label>
+<label class="choice" data-generation="antiga"><input type="radio" name="platform" value="PlayStation 4"><div class="console-icon">🎮</div><small>PlayStation 4</small></label>
+<label class="choice" data-generation="antiga"><input type="radio" name="platform" value="Xbox One"><div class="console-icon">🟢</div><small>Xbox One</small></label>
+</div></div>
+<div class="field"><label>Senha</label><input type="password" name="password" minlength="6" placeholder="Mínimo 6 caracteres" required></div>
+<div class="field"><label>Confirmar senha</label><input type="password" name="password_confirm" required></div>
+<label class="terms"><input type="checkbox" name="terms" value="1" required> Li e aceito os <a href="#">Termos de Uso</a> e a <a href="#">Política de Privacidade</a></label>
+<button class="btn btn-primary" style="width:100%;margin-top:18px">Criar conta</button>
+<p style="text-align:center" class="muted">Já tem uma conta? <a class="link-green" href="/login">Entrar</a></p>
+</form></aside>

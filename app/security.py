@@ -1,3 +1,4 @@
+import secrets
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
@@ -11,3 +12,6 @@ def verify_password(value: str, hashed: str) -> bool:
         return _hasher.verify(hashed, value)
     except VerifyMismatchError:
         return False
+
+def token_urlsafe(size: int = 32) -> str:
+    return secrets.token_urlsafe(size)

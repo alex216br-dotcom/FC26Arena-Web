@@ -1,60 +1,71 @@
-# FC26 Arena Web V5 Base
+# FC26 Arena Web V6 Pro
 
-Base profissional para evolução da plataforma FC26 Arena.
+Versão visual e funcional inspirada no layout profissional aprovado pelo organizador.
 
-## O que já funciona
+## Funcionalidades locais já implementadas
 
-- Cadastro e login de jogadores.
-- Login administrativo por senha.
+- Página inicial moderna, responsiva e semelhante ao mockup.
+- Cadastro em painel lateral com seleção por botões.
+- Plataformas filtradas pela geração:
+  - Nova: PlayStation 5, Xbox Series X|S e PC.
+  - Antiga: PlayStation 4 e Xbox One.
 - Vários campeonatos simultâneos.
-- Criação de campeonatos pelo painel.
-- Modalidades 1x1, 2x2 e Pro Clubs.
-- Nova e antiga geração.
-- Inscrição de jogador em campeonato.
-- Estrutura de equipes e membros.
-- Estrutura de temporadas.
-- Estrutura de partidas, grupos e mata-mata.
-- Estrutura de ranking permanente.
-- Estrutura de XP, níveis e conquistas.
-- Estrutura de cupons e pagamentos.
-- Estrutura de notificações.
-- Estrutura de upload de provas.
-- Estrutura de recuperação de senha.
-- Estrutura de administradores e permissões.
-- Auditoria de ações administrativas.
-- PostgreSQL e Alembic preparados.
+- Torneios 1x1, 2x2 e Pro Clubs.
+- Criação de torneios pelo painel.
+- Equipes, capitães, convites e membros.
+- Inscrição individual ou por equipe.
+- Cupons.
+- Pagamento Pix manual.
+- Endpoint protegido para confirmação externa de pagamento.
+- Grupos automáticos.
+- Classificação automática.
+- Mata-mata automático até a final.
+- Sala PVP.
+- Chat entre adversários.
+- Envio e confirmação de resultado.
+- Contestação, W.O. e denúncias.
+- Upload local de prints e provas.
+- Ranking permanente.
+- XP, nível, conquistas e medalhas.
+- Notificações internas.
+- E-mail SMTP, Telegram e webhook de WhatsApp preparados.
+- Recuperação de senha.
+- Auditoria administrativa.
+- Suporte.
+- Login administrativo por senha.
 
-## O que ainda depende de integração externa
+## Integrações externas
 
-- Envio real de e-mail.
-- WhatsApp oficial.
-- Telegram automático.
-- Pix automático e webhook.
-- Armazenamento externo de arquivos.
-- Geração completa de todas as fases do mata-mata.
-- Rotinas assíncronas de notificações.
+O site funciona sem integrações externas, mas os recursos abaixo exigem credenciais:
 
-Esses módulos estão modelados no banco, mas precisam das credenciais do provedor escolhido.
+- E-mail: configure SMTP.
+- Telegram: configure TELEGRAM_BOT_TOKEN e salve o chat ID do jogador.
+- WhatsApp: configure WHATSAPP_WEBHOOK_URL para um provedor oficial ou automação.
+- Pix automático: configure um provedor para chamar o endpoint:
+  `POST /webhooks/pagamento`
+  com o header `X-Webhook-Secret`.
+
+Sem provedor, o administrador pode aprovar pagamentos manualmente.
 
 ## Railway
 
-Adicione PostgreSQL e configure:
+Use um PostgreSQL novo e configure:
 
 ```text
 DATABASE_URL=${{Postgres.DATABASE_URL}}
-SECRET_KEY=uma-chave-longa-e-aleatoria
-ADMIN_PASSWORD=sua-senha-forte
-SITE_URL=https://seu-dominio.up.railway.app
+SECRET_KEY=uma-chave-longa
+ADMIN_PASSWORD=sua-senha
+SITE_URL=https://seu-site.up.railway.app
+UPLOAD_DIR=/data/uploads
 ```
+
+Para armazenar provas no Railway, monte um Volume em `/data`.
 
 ## Admin
 
-Acesse:
+`/admin/login`
 
-```text
-/admin/login
-```
+## Banco
 
-## Migração
-
-Para produção, use Alembic. Nesta base, as tabelas também são criadas automaticamente no primeiro deploy para facilitar os testes.
+A aplicação cria tabelas automaticamente. Como esta versão muda muito o esquema,
+use um banco novo na primeira publicação.
