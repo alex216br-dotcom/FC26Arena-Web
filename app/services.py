@@ -78,7 +78,7 @@ def reset_registration_stats(db: Session, tournament_id: int):
 
     matches = db.scalars(select(Match).where(
         Match.tournament_id == tournament_id,
-        Match.phase == "group",
+        Match.phase.in_(["group", "league"]),
         Match.status == "completed",
         Match.result_confirmed == True,
     )).all()
@@ -112,7 +112,12 @@ def reset_registration_stats(db: Session, tournament_id: int):
 def sorted_group(registrations: list[Registration]) -> list[Registration]:
     return sorted(
         registrations,
-        key=lambda r: (r.points, r.goals_for-r.goals_against, r.goals_for, r.wins),
+        key=lambda r: (
+            r.points,
+            r.wins,
+            r.goals_for - r.goals_against,
+            r.goals_for,
+        ),
         reverse=True,
     )
 
@@ -207,6 +212,139 @@ def generate_groups(db: Session, tournament: Tournament):
     tournament.status = "group_stage"
     db.commit()
     return groups
+
+
+
+def generate_round_robin_rounds(
+    registrations: list[Registration],
+) -> list[list[tuple[Registration, Registration]]]:
+    """
+    Gera rodadas equilibradas usando o método circular.
+    Cada participante joga uma vez por rodada; em quantidade ímpar há folga.
+    """
+    participants: list[Registration | None] = list(registrations)
+    if len(participants) % 2:
+        participants.append(None)
+
+    total = len(participants)
+    rounds: list[list[tuple[Registration, Registration]]] = []
+
+    for round_index in range(total - 1):
+        pairings: list[tuple[Registration, Registration]] = []
+        for index in range(total // 2):
+            left = participants[index]
+            right = participants[total - 1 - index]
+            if left is None or right is None:
+                continue
+
+            # Alterna mandante para distribuir melhor os lados.
+            if (round_index + index) % 2:
+                home, away = right, left
+            else:
+                home, away = left, right
+            pairings.append((home, away))
+
+        rounds.append(pairings)
+        participants = [participants[0], participants[-1], *participants[1:-1]]
+
+    return rounds
+
+
+def generate_league(db: Session, tournament: Tournament):
+    approved = db.scalars(
+        select(Registration).where(
+            Registration.tournament_id == tournament.id,
+            Registration.status == "approved",
+        )
+    ).all()
+
+    if len(approved) < 2:
+        raise ValueError("São necessárias pelo menos 2 inscrições aprovadas.")
+
+    clear_tournament_matches(db, tournament.id)
+    random.shuffle(approved)
+
+    turns = 2 if tournament.league_turns == 2 else 1
+    first_turn = generate_round_robin_rounds(approved)
+    round_number = 1
+
+    for pairings in first_turn:
+        for home, away in pairings:
+            db.add(Match(
+                tournament_id=tournament.id,
+                phase="league",
+                round_name=f"Rodada {round_number}",
+                round_order=round_number,
+                group_name="Liga",
+                home_registration_id=home.id,
+                away_registration_id=away.id,
+            ))
+        round_number += 1
+
+    if turns == 2:
+        for pairings in first_turn:
+            for home, away in pairings:
+                db.add(Match(
+                    tournament_id=tournament.id,
+                    phase="league",
+                    round_name=f"Rodada {round_number}",
+                    round_order=round_number,
+                    group_name="Liga",
+                    home_registration_id=away.id,
+                    away_registration_id=home.id,
+                ))
+            round_number += 1
+
+    tournament.status = "league_stage"
+    db.commit()
+    return {
+        "participants": len(approved),
+        "rounds": round_number - 1,
+        "turns": turns,
+    }
+
+
+def league_finished(db: Session, tournament_id: int) -> bool:
+    matches = db.scalars(
+        select(Match).where(
+            Match.tournament_id == tournament_id,
+            Match.phase == "league",
+        )
+    ).all()
+    return bool(matches) and all(
+        match.status == "completed" and match.result_confirmed
+        for match in matches
+    )
+
+
+def finish_league_if_ready(db: Session, tournament: Tournament):
+    if tournament.competition_format != "league":
+        return
+    if not league_finished(db, tournament.id):
+        return
+
+    registrations = db.scalars(
+        select(Registration).where(
+            Registration.tournament_id == tournament.id,
+            Registration.status == "approved",
+        )
+    ).all()
+    table = sorted_group(registrations)
+    if not table:
+        return
+
+    was_completed = tournament.status == "completed"
+    tournament.status = "completed"
+    champion = table[0]
+
+    if not was_completed:
+        for user in registration_users(db, champion):
+            user.titles += 1
+            award_achievement(db, user, "CHAMPION")
+        if champion.team:
+            champion.team.titles += 1
+
+    db.commit()
 
 
 def groups_finished(db: Session, tournament_id: int) -> bool:
@@ -354,11 +492,18 @@ def advance_knockout(db: Session, tournament: Tournament, current_match: Match):
 def process_confirmed_result(db: Session, match: Match):
     if match.home_score is None or match.away_score is None:
         return
+
     match.winner_registration_id = (
         match.home_registration_id if match.home_score > match.away_score
         else match.away_registration_id if match.away_score > match.home_score
         else None
     )
+
     reset_registration_stats(db, match.tournament_id)
     recalculate_global_stats(db)
+
+    if match.tournament.competition_format == "league":
+        finish_league_if_ready(db, match.tournament)
+        return
+
     advance_knockout(db, match.tournament, match)

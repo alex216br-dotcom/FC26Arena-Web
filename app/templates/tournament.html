@@ -1,10 +1,174 @@
-{% extends "base.html" %}{% block content %}<section class="container section"><div class="grid-2"><div class="panel"><span class="badge">{{ tournament.mode }}</span><h1>{{ tournament.name }}</h1><p>{{ 'Nova geração' if tournament.generation=='nova' else 'Antiga geração' }} · {{ tournament.starts_at }}</p><div class="tournament-specific-rules">
-      <h3>Regras específicas</h3>
-      <p>{{ tournament.rules }}</p>
+{% extends "base.html" %}
+{% block title %}{{ tournament.name }} — FC26 Arena{% endblock %}
+{% block content %}
+<section class="container section">
+  <div class="tournament-hero-panel">
+    <div>
+      <div class="tournament-badges">
+        <span class="badge">{{ tournament.mode }}</span>
+        <span class="badge badge-format">
+          {{ 'Liga / pontos corridos' if tournament.competition_format == 'league' else 'Grupos + mata-mata' }}
+        </span>
+      </div>
+      <h1>{{ tournament.name }}</h1>
+      <p>
+        {{ 'Nova geração' if tournament.generation=='nova' else 'Antiga geração' }}
+        · {{ tournament.starts_at }}
+        {% if tournament.competition_format == 'league' %}
+          · {{ tournament.league_turns }} turno(s)
+        {% endif %}
+      </p>
+
+      <div class="tournament-specific-rules">
+        <h3>Regras específicas</h3>
+        <p>{{ tournament.rules or 'Este campeonato segue o regulamento geral da plataforma.' }}</p>
+      </div>
+
+      <div class="tournament-rule-links">
+        <a class="btn" href="/como-funciona">Como funciona</a>
+        <a class="btn" href="/regulamento">Regulamento geral</a>
+      </div>
+
+      <div class="tournament-summary-grid">
+        <div><span>Inscritos</span><strong>{{ registrations|length }}/{{ tournament.max_entries }}</strong></div>
+        <div><span>Premiação</span><strong>R$ {{ '%.2f'|format(tournament.prize) }}</strong></div>
+        <div><span>Taxa</span><strong>R$ {{ '%.2f'|format(tournament.registration_fee) }}</strong></div>
+        <div>
+          <span>Formato</span>
+          <strong>{{ 'Pontos corridos' if tournament.competition_format == 'league' else 'Grupos + mata-mata' }}</strong>
+        </div>
+      </div>
+
+      {% if user and tournament.status=='open' %}
+        <form class="tournament-register-form" method="post" action="/campeonato/{{ tournament.slug }}/inscrever">
+          {% if tournament.mode!='1x1' %}
+            <div class="field">
+              <label>Equipe</label>
+              <select name="team_id" required>
+                {% for team in teams %}
+                  <option value="{{ team.id }}">{{ team.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          {% endif %}
+          <div class="field"><label>Cupom</label><input name="coupon_code"></div>
+          <button class="btn btn-primary">Inscrever-se</button>
+        </form>
+      {% elif not user %}
+        <a class="btn btn-primary" href="/login">Entrar para se inscrever</a>
+      {% endif %}
     </div>
-    <div class="tournament-rule-links">
-      <a class="btn" href="/como-funciona">Como funciona</a>
-      <a class="btn" href="/regulamento">Regulamento geral</a>
-    </div><p>Inscritos: {{ registrations|length }}/{{ tournament.max_entries }}</p><p>Premiação: R$ {{ '%.2f'|format(tournament.prize) }}</p><p>Taxa: R$ {{ '%.2f'|format(tournament.registration_fee) }}</p>{% if user and tournament.status=='open' %}<form method="post" action="/campeonato/{{ tournament.slug }}/inscrever">{% if tournament.mode!='1x1' %}<div class="field"><label>Equipe</label><select name="team_id" required>{% for team in teams %}<option value="{{ team.id }}">{{ team.name }}</option>{% endfor %}</select></div>{% endif %}<div class="field"><label>Cupom</label><input name="coupon_code"></div><button class="btn btn-primary">Inscrever-se</button></form>{% elif not user %}<a class="btn btn-primary" href="/login">Entrar para se inscrever</a>{% endif %}</div><div class="panel"><h2>Participantes</h2>{% for r in registrations %}<p>{{ r.team.name if r.team else r.user.name }} <span class="badge">{{ r.status }}</span></p>{% else %}<p>Nenhum inscrito.</p>{% endfor %}</div></div>
-{% if groups %}<h2>Classificação por grupos</h2>{% for name, regs in groups.items() %}<h3>Grupo {{ name }}</h3><div class="table-wrap"><table><tr><th>#</th><th>Participante</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th><th>Pts</th></tr>{% for r in regs %}<tr><td>{{ loop.index }}</td><td>{{ r.team.name if r.team else r.user.name }}</td><td>{{ r.played }}</td><td>{{ r.wins }}</td><td>{{ r.draws }}</td><td>{{ r.losses }}</td><td>{{ r.goals_for-r.goals_against }}</td><td>{{ r.points }}</td></tr>{% endfor %}</table></div>{% endfor %}{% endif %}
-{% if matches %}<h2>Partidas</h2><div class="table-wrap"><table><tr><th>Fase</th><th>Confronto</th><th>Placar</th><th>Status</th></tr>{% for m in matches %}<tr><td>{{ m.round_name }}</td><td>{{ m.home.team.name if m.home.team else m.home.user.name }} x {{ m.away.team.name if m.away.team else m.away.user.name }}</td><td>{{ m.home_score if m.home_score is not none else '-' }} x {{ m.away_score if m.away_score is not none else '-' }}</td><td>{{ m.status }}</td></tr>{% endfor %}</table></div>{% endif %}</section>{% endblock %}
+
+    <div class="panel">
+      <h2>Participantes</h2>
+      <div class="participant-list">
+        {% for r in registrations %}
+          <div>
+            <span>{{ r.team.name if r.team else r.user.name }}</span>
+            <span class="badge">{{ r.status }}</span>
+          </div>
+        {% else %}
+          <p>Nenhum inscrito.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {% if tournament.competition_format == 'league' %}
+    <section class="league-section">
+      <div class="section-title">
+        <div>
+          <h2>🏆 Classificação geral</h2>
+          <p class="muted">
+            Campeão: maior número de pontos. Desempates por vitórias, saldo de gols e gols marcados.
+          </p>
+        </div>
+      </div>
+
+      {% if tournament.status == 'completed' and league_table %}
+        <div class="league-champion">
+          <span>👑 CAMPEÃO</span>
+          <strong>{{ league_table[0].team.name if league_table[0].team else league_table[0].user.name }}</strong>
+          <small>{{ league_table[0].points }} pontos</small>
+        </div>
+      {% endif %}
+
+      <div class="table-wrap">
+        <table class="league-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Participante</th><th>J</th><th>V</th><th>E</th><th>D</th>
+              <th>GP</th><th>GC</th><th>SG</th><th>Pts</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for r in league_table %}
+            <tr class="{% if loop.index == 1 %}leader-row{% endif %}">
+              <td>{{ loop.index }}</td>
+              <td>{{ r.team.name if r.team else r.user.name }}</td>
+              <td>{{ r.played }}</td>
+              <td>{{ r.wins }}</td>
+              <td>{{ r.draws }}</td>
+              <td>{{ r.losses }}</td>
+              <td>{{ r.goals_for }}</td>
+              <td>{{ r.goals_against }}</td>
+              <td>{{ r.goals_for-r.goals_against }}</td>
+              <td><strong>{{ r.points }}</strong></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="10">A classificação aparecerá quando houver participantes aprovados.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% elif groups %}
+    <section>
+      <h2>Classificação por grupos</h2>
+      {% for name, regs in groups.items() %}
+        <h3>Grupo {{ name }}</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Participante</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th><th>Pts</th></tr></thead>
+            <tbody>
+            {% for r in regs %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ r.team.name if r.team else r.user.name }}</td>
+                <td>{{ r.played }}</td><td>{{ r.wins }}</td><td>{{ r.draws }}</td><td>{{ r.losses }}</td>
+                <td>{{ r.goals_for-r.goals_against }}</td><td>{{ r.points }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  {% if matches %}
+    <section class="tournament-matches">
+      <h2>{{ 'Rodadas e partidas' if tournament.competition_format == 'league' else 'Partidas' }}</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Rodada/Fase</th><th>Confronto</th><th>Placar</th><th>Status</th></tr></thead>
+          <tbody>
+          {% for m in matches %}
+            <tr>
+              <td>{{ m.round_name }}</td>
+              <td>
+                {{ m.home.team.name if m.home.team else m.home.user.name }}
+                x
+                {{ m.away.team.name if m.away.team else m.away.user.name }}
+              </td>
+              <td>{{ m.home_score if m.home_score is not none else '-' }} x {{ m.away_score if m.away_score is not none else '-' }}</td>
+              <td>{{ m.status }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+</section>
+{% endblock %}

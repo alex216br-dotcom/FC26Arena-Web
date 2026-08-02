@@ -436,3 +436,52 @@ body.menu-open{overflow:hidden}
   .payment-details{grid-template-columns:1fr}.payment-actions{display:grid}
   .payment-actions .btn{width:100%}
 }
+
+
+/* V6.1 — Liga / Pontos Corridos */
+.field-help{display:block;margin-top:6px;color:var(--muted);font-size:11px;line-height:1.35}
+.status-league_stage{background:#173d20;color:#65ff83}
+
+.tournament-hero-panel{
+  display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);
+  gap:22px;align-items:start
+}
+.tournament-badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.badge-format{background:#14331d;color:#75ff91;border-color:#2b6d3b}
+.tournament-summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:18px 0}
+.tournament-summary-grid>div{
+  padding:13px;border:1px solid #1b3528;border-radius:9px;background:#06100c
+}
+.tournament-summary-grid span,.tournament-summary-grid strong{display:block}
+.tournament-summary-grid span{font-size:11px;color:var(--muted);margin-bottom:5px}
+.tournament-register-form{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:14px}
+.tournament-register-form .field{margin:0;min-width:180px}
+.participant-list{display:grid;gap:8px;max-height:410px;overflow:auto}
+.participant-list>div{display:flex;justify-content:space-between;gap:10px;padding:10px;border-bottom:1px solid #173024}
+
+.league-section,.tournament-matches{margin-top:30px}
+.league-table{min-width:820px}
+.league-table th,.league-table td{text-align:center}
+.league-table th:nth-child(2),.league-table td:nth-child(2){text-align:left}
+.leader-row td{background:#0d2c16!important;border-color:#2c6f3b}
+.leader-row td:first-child{color:#ffe45b;font-weight:1000}
+.league-champion{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:14px 0 18px;padding:18px;
+  border:1px solid #4eaa42;border-radius:12px;
+  background:radial-gradient(circle at 15% 50%,#234319,#0b1c0f 45%,#07100d)
+}
+.league-champion span{color:#ffe45b;font-weight:1000;letter-spacing:1px}
+.league-champion strong{font-size:24px;color:#fff}
+.league-champion small{color:#a8b6ae}
+.format-step{border-color:#2f8c43;background:linear-gradient(145deg,#0b2913,#07110e)}
+
+@media(max-width:900px){
+  .tournament-hero-panel{grid-template-columns:1fr}
+  .tournament-summary-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:520px){
+  .tournament-summary-grid{grid-template-columns:1fr}
+  .tournament-register-form{display:grid}
+  .tournament-register-form .field,.tournament-register-form .btn{width:100%}
+  .league-champion{display:grid;gap:5px}
+}

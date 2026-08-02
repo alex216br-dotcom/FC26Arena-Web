@@ -54,6 +54,10 @@ class Tournament(Base):
     name: Mapped[str] = mapped_column(String(120))
     slug: Mapped[str] = mapped_column(String(120), unique=True)
     mode: Mapped[str] = mapped_column(String(20), default="1x1")
+    competition_format: Mapped[str] = mapped_column(
+        String(30), default="groups_knockout"
+    )
+    league_turns: Mapped[int] = mapped_column(Integer, default=2)
     generation: Mapped[str] = mapped_column(String(20), default="nova")
     max_entries: Mapped[int] = mapped_column(Integer, default=32)
     group_size: Mapped[int] = mapped_column(Integer, default=4)

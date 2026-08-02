@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, inspect, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 from starlette.middleware.sessions import SessionMiddleware
@@ -24,8 +24,8 @@ from .models import (
 from .security import hash_password, token_urlsafe, verify_password
 from .services import (
     audit, clear_tournament_matches, entry_name, generate_groups,
-    process_confirmed_result, registration_users, seed_achievements,
-    sorted_group, unique_slug,
+    generate_league, process_confirmed_result, registration_users,
+    seed_achievements, sorted_group, unique_slug,
 )
 
 BASE = Path(__file__).resolve().parent
@@ -54,9 +54,50 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
 
+
+def ensure_tournament_format_columns():
+    """
+    Atualiza bancos já existentes sem apagar campeonatos ou inscrições.
+    create_all() cria tabelas novas, mas não adiciona colunas em tabelas antigas.
+    """
+    inspector = inspect(engine)
+    if "tournaments" not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"] for column in inspector.get_columns("tournaments")
+    }
+    statements: list[str] = []
+
+    if "competition_format" not in existing_columns:
+        statements.append(
+            "ALTER TABLE tournaments "
+            "ADD COLUMN competition_format VARCHAR(30) "
+            "NOT NULL DEFAULT 'groups_knockout'"
+        )
+
+    if "league_turns" not in existing_columns:
+        statements.append(
+            "ALTER TABLE tournaments "
+            "ADD COLUMN league_turns INTEGER NOT NULL DEFAULT 2"
+        )
+
+    if statements:
+        with engine.begin() as connection:
+            for statement in statements:
+                connection.execute(text(statement))
+
+
+def minimum_entries_for_schedule(tournament: Tournament) -> int:
+    if tournament.competition_format == "league":
+        return 2
+    return max(2, tournament.group_size)
+
+
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
+    ensure_tournament_format_columns()
     db = next(get_db())
     try:
         if not db.scalar(select(Season).limit(1)):
@@ -66,10 +107,10 @@ def startup():
         if not db.scalar(select(Tournament).limit(1)):
             season = db.scalar(select(Season).where(Season.active == True).limit(1))
             demos = [
-                Tournament(season_id=season.id, name="Copa FC26 Elite", slug="copa-fc26-elite", mode="1x1", generation="nova", max_entries=32, prize=50, status="open", color_theme="green", rules="Fase de grupos e mata-mata."),
-                Tournament(season_id=season.id, name="Duplas Champions", slug="duplas-champions", mode="2x2", generation="nova", max_entries=16, prize=100, status="open", color_theme="purple", rules="Equipes com 2 jogadores."),
-                Tournament(season_id=season.id, name="Pro Clubs League", slug="pro-clubs-league", mode="Pro Clubs", generation="nova", max_entries=8, prize=200, status="open", color_theme="cyan", rules="Campeonato para clubes."),
-                Tournament(season_id=season.id, name="Legends Cup", slug="legends-cup", mode="1x1", generation="antiga", max_entries=32, prize=50, status="open", color_theme="orange", rules="PS4 e Xbox One."),
+                Tournament(season_id=season.id, name="Copa FC26 Elite", slug="copa-fc26-elite", mode="1x1", competition_format="groups_knockout", league_turns=2, generation="nova", max_entries=32, prize=50, status="open", color_theme="green", rules="Fase de grupos e mata-mata."),
+                Tournament(season_id=season.id, name="Duplas Champions", slug="duplas-champions", mode="2x2", competition_format="groups_knockout", league_turns=2, generation="nova", max_entries=16, prize=100, status="open", color_theme="purple", rules="Equipes com 2 jogadores."),
+                Tournament(season_id=season.id, name="Pro Clubs League", slug="pro-clubs-league", mode="Pro Clubs", competition_format="league", league_turns=2, generation="nova", max_entries=8, prize=200, status="open", color_theme="cyan", rules="Campeonato para clubes."),
+                Tournament(season_id=season.id, name="Legends Cup", slug="legends-cup", mode="1x1", competition_format="groups_knockout", league_turns=2, generation="antiga", max_entries=32, prize=50, status="open", color_theme="orange", rules="PS4 e Xbox One."),
             ]
             db.add_all(demos)
             db.commit()
@@ -382,28 +423,82 @@ def tournaments_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("tournaments.html", ctx(request, tournaments=tournaments))
 
 @app.get("/campeonato/{slug}", response_class=HTMLResponse)
-def tournament_page(slug: str, request: Request, db: Session = Depends(get_db)):
-    tournament = db.scalar(select(Tournament).where(Tournament.slug == slug))
+def tournament_page(
+    slug: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    tournament = db.scalar(
+        select(Tournament).where(Tournament.slug == slug)
+    )
     if not tournament:
         raise HTTPException(404)
-    registrations = db.scalars(select(Registration).where(Registration.tournament_id == tournament.id)).all()
+
+    registrations = db.scalars(
+        select(Registration)
+        .options(
+            selectinload(Registration.user),
+            selectinload(Registration.team),
+        )
+        .where(Registration.tournament_id == tournament.id)
+    ).all()
+
     user = current_user(request, db)
     teams = []
     if user:
-        memberships = db.scalars(select(TeamMember).where(TeamMember.user_id == user.id)).all()
-        teams = [m.team for m in memberships if m.team and m.team.mode == tournament.mode]
-    groups = {}
-    for reg in registrations:
-        if reg.group_name:
-            groups.setdefault(reg.group_name, []).append(reg)
-    for name in groups:
-        groups[name] = sorted_group(groups[name])
-    matches = db.scalars(select(Match).where(Match.tournament_id == tournament.id).order_by(Match.round_order, Match.id)).all()
-    return templates.TemplateResponse("tournament.html", ctx(
-        request, tournament=tournament, registrations=registrations, user=user, teams=teams,
-        groups=groups, matches=matches,
-    ))
+        memberships = db.scalars(
+            select(TeamMember).where(TeamMember.user_id == user.id)
+        ).all()
+        teams = [
+            membership.team
+            for membership in memberships
+            if membership.team and membership.team.mode == tournament.mode
+        ]
 
+    groups: dict[str, list[Registration]] = {}
+    league_table: list[Registration] = []
+
+    if tournament.competition_format == "league":
+        league_table = sorted_group([
+            registration
+            for registration in registrations
+            if registration.status == "approved"
+        ])
+    else:
+        for registration in registrations:
+            if registration.group_name:
+                groups.setdefault(
+                    registration.group_name,
+                    [],
+                ).append(registration)
+        for name in groups:
+            groups[name] = sorted_group(groups[name])
+
+    matches = db.scalars(
+        select(Match)
+        .options(
+            selectinload(Match.home).selectinload(Registration.user),
+            selectinload(Match.home).selectinload(Registration.team),
+            selectinload(Match.away).selectinload(Registration.user),
+            selectinload(Match.away).selectinload(Registration.team),
+        )
+        .where(Match.tournament_id == tournament.id)
+        .order_by(Match.round_order, Match.id)
+    ).all()
+
+    return templates.TemplateResponse(
+        "tournament.html",
+        ctx(
+            request,
+            tournament=tournament,
+            registrations=registrations,
+            user=user,
+            teams=teams,
+            groups=groups,
+            league_table=league_table,
+            matches=matches,
+        ),
+    )
 @app.post("/campeonato/{slug}/inscrever")
 def tournament_register(
     slug: str,
@@ -770,7 +865,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
             "tournament": tournament,
             "counts": counts,
             "matches": match_count,
-            "can_draw": counts["approved"] >= max(2, tournament.group_size),
+            "can_draw": counts["approved"] >= minimum_entries_for_schedule(tournament),
         })
 
     stats = {
@@ -956,7 +1051,7 @@ def admin_tournament_manage(
         matches=matches,
         available_users=available_users,
         counts=counts,
-        can_draw=counts["approved"] >= max(2, tournament.group_size),
+        can_draw=counts["approved"] >= minimum_entries_for_schedule(tournament),
         registration_label=registration_label,
         registration_meta=registration_meta,
         registration_contact=registration_contact,
@@ -970,32 +1065,81 @@ def admin_edit_tournament(
     request: Request,
     name: Annotated[str, Form()],
     mode: Annotated[str, Form()],
-    generation: Annotated[str, Form()],
-    max_entries: Annotated[int, Form()],
-    group_size: Annotated[int, Form()],
-    registration_fee: Annotated[float, Form()],
-    prize: Annotated[float, Form()],
-    starts_at: Annotated[str, Form()],
-    color_theme: Annotated[str, Form()],
-    rules: Annotated[str, Form()],
-    status: Annotated[str, Form()],
+    competition_format: Annotated[str, Form()] = "groups_knockout",
+    league_turns: Annotated[int, Form()] = 2,
+    generation: Annotated[str, Form()] = "nova",
+    max_entries: Annotated[int, Form()] = 32,
+    group_size: Annotated[int, Form()] = 4,
+    registration_fee: Annotated[float, Form()] = 0,
+    prize: Annotated[float, Form()] = 0,
+    starts_at: Annotated[str, Form()] = "A definir",
+    color_theme: Annotated[str, Form()] = "green",
+    rules: Annotated[str, Form()] = "",
+    status: Annotated[str, Form()] = "open",
     db: Session = Depends(get_db),
 ):
     require_admin(request)
     tournament = db.get(Tournament, tournament_id)
     if not tournament:
         raise HTTPException(404)
+
     if mode not in {"1x1", "2x2", "Pro Clubs"}:
-        return admin_redirect("Modalidade inválida.", f"/admin/campeonato/{tournament_id}")
+        return admin_redirect(
+            "Modalidade inválida.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+    if competition_format not in {"groups_knockout", "league"}:
+        return admin_redirect(
+            "Formato inválido.",
+            f"/admin/campeonato/{tournament_id}",
+        )
     if generation not in PLATFORMS:
-        return admin_redirect("Geração inválida.", f"/admin/campeonato/{tournament_id}")
-    if group_size < 2:
-        return admin_redirect("O grupo precisa ter pelo menos 2 participantes.", f"/admin/campeonato/{tournament_id}")
-    if max_entries < group_size:
-        return admin_redirect("O número de vagas não pode ser menor que o tamanho do grupo.", f"/admin/campeonato/{tournament_id}")
+        return admin_redirect(
+            "Geração inválida.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+    if max_entries < 2:
+        return admin_redirect(
+            "O campeonato precisa de pelo menos 2 vagas.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+    if competition_format == "groups_knockout":
+        if group_size < 2:
+            return admin_redirect(
+                "O grupo precisa ter pelo menos 2 participantes.",
+                f"/admin/campeonato/{tournament_id}",
+            )
+        if max_entries < group_size:
+            return admin_redirect(
+                "As vagas não podem ser menores que o tamanho do grupo.",
+                f"/admin/campeonato/{tournament_id}",
+            )
+    if league_turns not in {1, 2}:
+        return admin_redirect(
+            "Escolha 1 ou 2 turnos.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+
+    format_changed = (
+        tournament.competition_format != competition_format
+        or tournament.league_turns != league_turns
+    )
+    has_matches = bool(db.scalar(
+        select(Match.id).where(Match.tournament_id == tournament.id)
+    ))
+    if format_changed and has_matches:
+        return admin_redirect(
+            (
+                "Limpe o sorteio/tabela antes de alterar o formato "
+                "ou a quantidade de turnos."
+            ),
+            f"/admin/campeonato/{tournament_id}",
+        )
 
     tournament.name = name.strip()
     tournament.mode = mode
+    tournament.competition_format = competition_format
+    tournament.league_turns = league_turns
     tournament.generation = generation
     tournament.max_entries = max_entries
     tournament.group_size = group_size
@@ -1005,6 +1149,7 @@ def admin_edit_tournament(
     tournament.color_theme = color_theme
     tournament.rules = rules.strip()
     tournament.status = status
+
     try:
         db.commit()
     except Exception as exc:
@@ -1013,12 +1158,21 @@ def admin_edit_tournament(
             f"Não foi possível salvar: {exc}",
             f"/admin/campeonato/{tournament_id}",
         )
-    audit(db, "edit", "tournament", tournament.id, tournament.name)
+
+    audit(
+        db,
+        "edit",
+        "tournament",
+        tournament.id,
+        (
+            f"{tournament.name}; format={competition_format}; "
+            f"league_turns={league_turns}"
+        ),
+    )
     return admin_redirect(
         "Campeonato atualizado com sucesso.",
         f"/admin/campeonato/{tournament_id}",
     )
-
 @app.post("/admin/campeonato/{tournament_id}/adicionar-jogador")
 def admin_add_player_to_tournament(
     tournament_id: int,
@@ -1350,14 +1504,16 @@ def admin_create_tournament(
     request: Request,
     name: Annotated[str, Form()],
     mode: Annotated[str, Form()],
-    generation: Annotated[str, Form()],
-    max_entries: Annotated[int, Form()],
-    group_size: Annotated[int, Form()],
-    registration_fee: Annotated[float, Form()],
-    prize: Annotated[float, Form()],
-    starts_at: Annotated[str, Form()],
-    color_theme: Annotated[str, Form()],
-    rules: Annotated[str, Form()],
+    competition_format: Annotated[str, Form()] = "groups_knockout",
+    league_turns: Annotated[int, Form()] = 2,
+    generation: Annotated[str, Form()] = "nova",
+    max_entries: Annotated[int, Form()] = 32,
+    group_size: Annotated[int, Form()] = 4,
+    registration_fee: Annotated[float, Form()] = 0,
+    prize: Annotated[float, Form()] = 0,
+    starts_at: Annotated[str, Form()] = "A definir",
+    color_theme: Annotated[str, Form()] = "green",
+    rules: Annotated[str, Form()] = "",
     db: Session = Depends(get_db),
 ):
     require_admin(request)
@@ -1366,12 +1522,21 @@ def admin_create_tournament(
         return admin_redirect("Informe o nome do campeonato.")
     if mode not in {"1x1", "2x2", "Pro Clubs"}:
         return admin_redirect("Modalidade inválida.")
+    if competition_format not in {"groups_knockout", "league"}:
+        return admin_redirect("Formato do campeonato inválido.")
     if generation not in PLATFORMS:
         return admin_redirect("Geração inválida.")
-    if group_size < 2:
-        return admin_redirect("O grupo precisa ter pelo menos 2 participantes.")
-    if max_entries < group_size:
-        return admin_redirect("As vagas não podem ser menores que o tamanho do grupo.")
+    if max_entries < 2:
+        return admin_redirect("O campeonato precisa de pelo menos 2 vagas.")
+    if competition_format == "groups_knockout":
+        if group_size < 2:
+            return admin_redirect("O grupo precisa ter pelo menos 2 participantes.")
+        if max_entries < group_size:
+            return admin_redirect(
+                "As vagas não podem ser menores que o tamanho do grupo."
+            )
+    if league_turns not in {1, 2}:
+        return admin_redirect("Escolha 1 ou 2 turnos para os pontos corridos.")
 
     season = db.scalar(
         select(Season).where(Season.active == True).limit(1)
@@ -1382,6 +1547,8 @@ def admin_create_tournament(
         name=name.strip(),
         slug=unique_slug(db, name),
         mode=mode,
+        competition_format=competition_format,
+        league_turns=league_turns,
         generation=generation,
         max_entries=max_entries,
         group_size=group_size,
@@ -1401,9 +1568,17 @@ def admin_create_tournament(
         db.rollback()
         return admin_redirect(f"Não foi possível criar o campeonato: {exc}")
 
-    audit(db, "create", "tournament", tournament.id, tournament.name)
+    audit(
+        db,
+        "create",
+        "tournament",
+        tournament.id,
+        (
+            f"{tournament.name}; format={competition_format}; "
+            f"league_turns={league_turns}"
+        ),
+    )
     return admin_redirect("Campeonato criado com sucesso.")
-
 @app.post("/admin/campeonato/{tournament_id}/status")
 def admin_tournament_status(tournament_id: int, request: Request, status: Annotated[str, Form()], db: Session = Depends(get_db)):
     require_admin(request)
@@ -1417,36 +1592,68 @@ def admin_tournament_status(tournament_id: int, request: Request, status: Annota
 
 
 @app.post("/admin/campeonato/{tournament_id}/sortear")
-def admin_draw_groups(tournament_id: int, request: Request, db: Session = Depends(get_db)):
+def admin_draw_groups(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     require_admin(request)
     tournament = db.get(Tournament, tournament_id)
     if not tournament:
         raise HTTPException(404)
 
-    approved = db.scalars(select(Registration).where(
-        Registration.tournament_id == tournament.id,
-        Registration.status == "approved",
-    )).all()
-    if len(approved) < max(2, tournament.group_size):
+    approved = db.scalars(
+        select(Registration).where(
+            Registration.tournament_id == tournament.id,
+            Registration.status == "approved",
+        )
+    ).all()
+
+    minimum = minimum_entries_for_schedule(tournament)
+    if len(approved) < minimum:
         return admin_redirect(
-            f"Não foi possível sortear: há {len(approved)} inscrição(ões) aprovada(s), mas o grupo exige {tournament.group_size}.",
+            (
+                f"Não foi possível gerar: há {len(approved)} inscrição(ões) "
+                f"aprovada(s), mas são necessárias pelo menos {minimum}."
+            ),
             f"/admin/campeonato/{tournament_id}",
         )
 
     try:
-        groups = generate_groups(db, tournament)
-        total_matches = db.scalar(
-            select(func.count()).select_from(Match).where(Match.tournament_id == tournament.id)
-        )
-        message = f"Sorteio concluído: {len(groups)} grupo(s) e {total_matches} partida(s) gerada(s)."
+        if tournament.competition_format == "league":
+            league = generate_league(db, tournament)
+            total_matches = db.scalar(
+                select(func.count())
+                .select_from(Match)
+                .where(Match.tournament_id == tournament.id)
+            )
+            message = (
+                f"Tabela de pontos corridos gerada: "
+                f"{league['participants']} participantes, "
+                f"{league['rounds']} rodadas, {league['turns']} turno(s) "
+                f"e {total_matches} partidas."
+            )
+            audit_action = "generate_league"
+        else:
+            groups = generate_groups(db, tournament)
+            total_matches = db.scalar(
+                select(func.count())
+                .select_from(Match)
+                .where(Match.tournament_id == tournament.id)
+            )
+            message = (
+                f"Sorteio concluído: {len(groups)} grupo(s) "
+                f"e {total_matches} partida(s) gerada(s)."
+            )
+            audit_action = "draw_groups"
+
     except Exception as exc:
         db.rollback()
-        message = f"Falha no sorteio: {exc}"
+        message = f"Falha ao gerar campeonato: {exc}"
+        audit_action = "generation_error"
 
-    audit(db, "draw_groups", "tournament", tournament_id, message)
+    audit(db, audit_action, "tournament", tournament_id, message)
     return admin_redirect(message, f"/admin/campeonato/{tournament_id}")
-
-
 @app.post("/admin/pagamento/{payment_id}")
 def admin_payment(
     payment_id: int,

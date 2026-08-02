@@ -51,7 +51,12 @@
         <div class="card-cover theme-{{ t.color_theme }}"><span class="mode-tag">{{ t.mode }}</span>{{ t.name }}</div>
         <div class="card-body">
           <h3>{{ t.name }}</h3>
-          <div class="card-meta">🏅 {{ 'Nova geração' if t.generation=='nova' else 'Antiga geração' }}<br>👥 {{ t.max_entries }} vagas<br>💰 R$ {{ '%.2f'|format(t.prize) }}</div>
+          <div class="card-meta">
+            🏅 {{ 'Nova geração' if t.generation=='nova' else 'Antiga geração' }}<br>
+            📋 {{ 'Pontos corridos' if t.competition_format == 'league' else 'Grupos + mata-mata' }}<br>
+            👥 {{ t.max_entries }} vagas<br>
+            💰 R$ {{ '%.2f'|format(t.prize) }}
+          </div>
           <span class="open-tag">◆ Inscrições {{ 'abertas' if t.status=='open' else t.status }}</span>
         </div>
       </a>

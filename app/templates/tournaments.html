@@ -1,1 +1,28 @@
-{% extends "base.html" %}{% block content %}<section class="container section"><div class="section-title"><h1>Campeonatos</h1></div><div class="cards">{% for t in tournaments %}<a class="tournament-card" href="/campeonato/{{ t.slug }}"><div class="card-cover theme-{{ t.color_theme }}"><span class="mode-tag">{{ t.mode }}</span>{{ t.name }}</div><div class="card-body"><h3>{{ t.name }}</h3><div class="card-meta">🎮 {{ 'Nova geração' if t.generation=='nova' else 'Antiga geração' }}<br>👥 {{ t.max_entries }} vagas<br>💰 Prêmio R$ {{ '%.2f'|format(t.prize) }}<br>💳 Inscrição R$ {{ '%.2f'|format(t.registration_fee) }}</div><span class="open-tag">{{ t.status }}</span></div></a>{% endfor %}</div></section>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Campeonatos — FC26 Arena{% endblock %}
+{% block content %}
+<section class="container section">
+  <div class="section-title"><h1>Campeonatos</h1></div>
+  <div class="cards">
+    {% for t in tournaments %}
+      <a class="tournament-card" href="/campeonato/{{ t.slug }}">
+        <div class="card-cover theme-{{ t.color_theme }}">
+          <span class="mode-tag">{{ t.mode }}</span>{{ t.name }}
+        </div>
+        <div class="card-body">
+          <h3>{{ t.name }}</h3>
+          <div class="card-meta">
+            🎮 {{ 'Nova geração' if t.generation=='nova' else 'Antiga geração' }}<br>
+            📋 {{ 'Liga / pontos corridos' if t.competition_format == 'league' else 'Grupos + mata-mata' }}<br>
+            {% if t.competition_format == 'league' %}🔁 {{ t.league_turns }} turno(s)<br>{% endif %}
+            👥 {{ t.max_entries }} vagas<br>
+            💰 Prêmio R$ {{ '%.2f'|format(t.prize) }}<br>
+            💳 Inscrição R$ {{ '%.2f'|format(t.registration_fee) }}
+          </div>
+          <span class="open-tag">{{ t.status }}</span>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

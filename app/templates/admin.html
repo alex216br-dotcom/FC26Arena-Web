@@ -38,21 +38,30 @@
       <div class="admin-section-head"><div><h2>Campeonatos</h2><p>Acompanhe vagas, inscrições aprovadas e partidas.</p></div></div>
       <div class="admin-table-wrap">
         <table class="admin-table">
-          <thead><tr><th>Campeonato</th><th>Modalidade</th><th>Inscritos</th><th>Aprovados</th><th>Partidas</th><th>Status</th><th>Ações</th></tr></thead>
+          <thead><tr><th>Campeonato</th><th>Modalidade / formato</th><th>Inscritos</th><th>Aprovados</th><th>Partidas</th><th>Status</th><th>Ações</th></tr></thead>
           <tbody>
           {% for row in tournament_rows %}
             {% set t = row.tournament %}
             <tr>
               <td><strong>{{ t.name }}</strong><small>{{ 'Nova geração' if t.generation == 'nova' else 'Antiga geração' }} · {{ t.starts_at }}</small></td>
-              <td><span class="admin-chip">{{ t.mode }}</span></td>
+              <td>
+                <span class="admin-chip">{{ t.mode }}</span>
+                <small>
+                  {{ 'Pontos corridos' if t.competition_format == 'league' else 'Grupos + mata-mata' }}
+                  {% if t.competition_format == 'league' %}· {{ t.league_turns }} turno(s){% endif %}
+                </small>
+              </td>
               <td>{{ row.counts.total }}/{{ t.max_entries }}</td>
               <td>{{ row.counts.approved }}</td>
               <td>{{ row.matches }}</td>
               <td><span class="status status-{{ t.status }}">{{ t.status }}</span></td>
               <td class="admin-actions">
                 <a class="btn btn-small btn-primary" href="/admin/campeonato/{{ t.id }}">Gerenciar</a>
-                <form method="post" action="/admin/campeonato/{{ t.id }}/sortear" onsubmit="return confirm('Sortear novamente apagará as partidas atuais deste campeonato. Continuar?')">
-                  <button class="btn btn-small" {% if not row.can_draw %}disabled title="Inscrições aprovadas insuficientes"{% endif %}>🎲 Sortear</button>
+                <form method="post" action="/admin/campeonato/{{ t.id }}/sortear"
+                      onsubmit="return confirm('{{ 'Gerar novamente a tabela apagará as partidas atuais. Continuar?' if t.competition_format == 'league' else 'Sortear novamente apagará as partidas atuais. Continuar?' }}')">
+                  <button class="btn btn-small" {% if not row.can_draw %}disabled title="Inscrições aprovadas insuficientes"{% endif %}>
+                    {{ '📅 Gerar tabela' if t.competition_format == 'league' else '🎲 Sortear' }}
+                  </button>
                 </form>
               </td>
             </tr>
@@ -70,9 +79,28 @@
         <form class="admin-form-grid" method="post" action="/admin/campeonatos">
           <div class="field span-2"><label>Nome</label><input name="name" required></div>
           <div class="field"><label>Modalidade</label><select name="mode"><option>1x1</option><option>2x2</option><option>Pro Clubs</option></select></div>
+          <div class="field">
+            <label>Formato da competição</label>
+            <select name="competition_format">
+              <option value="groups_knockout">Grupos + mata-mata</option>
+              <option value="league">Liga / pontos corridos</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Turnos nos pontos corridos</label>
+            <select name="league_turns">
+              <option value="2">2 turnos — ida e volta</option>
+              <option value="1">1 turno — jogo único</option>
+            </select>
+            <small class="field-help">Usado somente no formato Liga.</small>
+          </div>
           <div class="field"><label>Geração</label><select name="generation"><option value="nova">Nova geração</option><option value="antiga">Antiga geração</option></select></div>
           <div class="field"><label>Vagas</label><input type="number" min="2" name="max_entries" value="32"></div>
-          <div class="field"><label>Participantes por grupo</label><input type="number" min="2" name="group_size" value="4"></div>
+          <div class="field">
+            <label>Participantes por grupo</label>
+            <input type="number" min="2" name="group_size" value="4">
+            <small class="field-help">Usado somente em Grupos + mata-mata.</small>
+          </div>
           <div class="field"><label>Taxa de inscrição</label><input type="number" min="0" step="0.01" name="registration_fee" value="0"></div>
           <div class="field"><label>Premiação</label><input type="number" min="0" step="0.01" name="prize" value="50"></div>
           <div class="field"><label>Data e horário</label><input name="starts_at" value="A definir"></div>

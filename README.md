@@ -130,3 +130,16 @@ use um banco novo na primeira publicação.
 - A página Pix verifica o status a cada 3 segundos.
 - Após a aprovação, o jogador é enviado automaticamente para o painel em 2 segundos.
 - O botão administrativo agora informa que aprova inscrição e pagamento.
+
+
+## Formato Liga / Pontos Corridos
+
+- Novo formato selecionável no painel administrativo.
+- Opção de 1 turno ou 2 turnos (ida e volta, estilo Brasileirão).
+- Todos jogam contra todos.
+- Rodadas geradas automaticamente pelo método circular.
+- Vitória: 3 pontos; empate: 1; derrota: 0.
+- Desempate: pontos, vitórias, saldo de gols e gols marcados.
+- Não gera mata-mata.
+- Ao terminar todas as rodadas, o primeiro colocado é declarado campeão automaticamente.
+- O banco existente é atualizado automaticamente com as novas colunas, sem apagar dados.
