@@ -69,6 +69,21 @@ class Tournament(Base):
     color_theme: Mapped[str] = mapped_column(String(20), default="green")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+class TournamentPrize(Base):
+    __tablename__ = "tournament_prizes"
+    __table_args__ = (
+        UniqueConstraint("tournament_id", "place", name="uq_tournament_prize_place"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tournament_id: Mapped[int] = mapped_column(
+        ForeignKey("tournaments.id"), index=True
+    )
+    place: Mapped[int] = mapped_column(Integer)
+    amount: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
+    tournament = relationship("Tournament")
+
+
 class Team(Base):
     __tablename__ = "teams"
     id: Mapped[int] = mapped_column(primary_key=True)

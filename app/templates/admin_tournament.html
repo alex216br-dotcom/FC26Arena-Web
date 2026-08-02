@@ -112,7 +112,24 @@
           <small class="field-help">Usado apenas no formato Grupos + mata-mata.</small>
         </div>
         <div class="field"><label>Taxa de inscrição</label><input type="number" min="0" step="0.01" name="registration_fee" value="{{ tournament.registration_fee }}" required></div>
-        <div class="field"><label>Premiação</label><input type="number" min="0" step="0.01" name="prize" value="{{ tournament.prize }}" required></div>
+        <div class="field">
+          <label>Premiação total</label>
+          <input type="number" min="0" step="0.01" name="prize" value="{{ tournament.prize }}" required>
+          <small class="field-help">A soma dos valores por colocação passa a ser o total oficial.</small>
+        </div>
+        <div class="field">
+          <label>Quantidade de colocados premiados</label>
+          <input type="number" min="1" max="20" name="prize_places" value="{{ prize_places }}" required>
+          <small class="field-help">Esta configuração vale somente para este campeonato.</small>
+        </div>
+        <div class="field span-2">
+          <label>Valores por colocação</label>
+          <input name="prize_distribution" value="{{ prize_distribution_value }}" placeholder="Ex.: 50; 40; 30; 20; 10">
+          <small class="field-help">
+            Informe um valor para cada posição, separado por ponto e vírgula.
+            Exemplo para 5 premiados: 50; 40; 30; 20; 10.
+          </small>
+        </div>
         <div class="field"><label>Data e horário</label><input name="starts_at" value="{{ tournament.starts_at }}"></div>
 
         <div class="field">
@@ -134,6 +151,22 @@
         </div>
 
         <div class="field span-2"><label>Regulamento específico</label><textarea name="rules">{{ tournament.rules }}</textarea></div>
+
+        <div class="span-2 prize-config-preview">
+          <strong>Premiação configurada atualmente</strong>
+          <div class="prize-config-chips">
+            {% for award in prize_awards %}
+              <span>{{ award.place }}º — R$ {{ '%.2f'|format(award.amount) }}</span>
+            {% endfor %}
+          </div>
+          {% if tournament.competition_format != 'league' and prize_places > 1 %}
+            <small>
+              Em pontos corridos as posições são calculadas automaticamente.
+              Em grupos + mata-mata, posições além de campeão e vice podem exigir definição administrativa.
+            </small>
+          {% endif %}
+        </div>
+
         <div class="span-2 admin-save-area"><button type="submit" class="btn btn-primary">💾 Salvar alterações</button></div>
       </form>
     </section>

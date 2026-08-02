@@ -143,3 +143,25 @@ use um banco novo na primeira publicação.
 - Não gera mata-mata.
 - Ao terminar todas as rodadas, o primeiro colocado é declarado campeão automaticamente.
 - O banco existente é atualizado automaticamente com as novas colunas, sem apagar dados.
+
+
+## Premiação por colocação
+
+Cada campeonato possui sua própria distribuição de prêmios.
+
+No painel administrativo:
+1. Abra o campeonato desejado.
+2. Escolha a quantidade de colocados premiados.
+3. Informe os valores separados por ponto e vírgula, por exemplo:
+   `50; 40; 30; 20; 10`.
+4. Salve as alterações.
+
+Se os valores forem deixados em branco, a premiação total será dividida igualmente.
+
+Nos pontos corridos:
+- a faixa premiada é destacada na classificação;
+- cada posição mostra o valor correspondente;
+- quando a liga termina, os premiados recebem uma notificação no site.
+
+Em grupos + mata-mata, a distribuição também é exibida, mas posições além das
+finais podem precisar de definição administrativa conforme o regulamento.

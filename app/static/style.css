@@ -485,3 +485,50 @@ body.menu-open{overflow:hidden}
   .tournament-register-form .field,.tournament-register-form .btn{width:100%}
   .league-champion{display:grid;gap:5px}
 }
+
+
+/* V6.1 — premiação por colocações */
+.prize-config-preview{
+  padding:16px;border:1px solid #2b653a;border-radius:10px;
+  background:linear-gradient(135deg,#0a2513,#07110e)
+}
+.prize-config-preview>strong{display:block;margin-bottom:10px}
+.prize-config-preview small{display:block;margin-top:10px;color:var(--muted)}
+.prize-config-chips{display:flex;gap:8px;flex-wrap:wrap}
+.prize-config-chips span{
+  padding:8px 11px;border:1px solid #347047;border-radius:999px;
+  background:#07160d;color:#dcffe5;font-weight:800;font-size:12px
+}
+
+.prize-distribution-panel{
+  margin:18px 0;padding:18px;border:1px solid #357c45;border-radius:12px;
+  background:radial-gradient(circle at 85% 20%,#173d20,#091510 45%,#06100c)
+}
+.prize-distribution-head{
+  display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:13px
+}
+.prize-distribution-head h3{margin:5px 0 0}
+.prize-distribution-head>strong{
+  padding:8px 12px;border-radius:999px;background:#173d20;color:#79ff94
+}
+.prize-distribution-list{display:grid;gap:8px}
+.prize-distribution-list>div{
+  display:flex;justify-content:space-between;align-items:center;gap:15px;
+  padding:12px 14px;border:1px solid #1e3c2b;border-radius:8px;background:#06100c
+}
+.prize-distribution-list .first-prize{
+  border-color:#9e8d32;background:linear-gradient(135deg,#2a2510,#07100d)
+}
+.prize-distribution-list .first-prize span{color:#ffe76a;font-weight:900}
+.prize-distribution-list strong{color:#62ff83}
+.prize-distribution-panel>small{display:block;margin-top:12px;color:var(--muted);line-height:1.45}
+
+.prize-row td{background:#0a2111!important;border-color:#235b31}
+.prize-position{margin-right:4px}
+.prize-amount{color:#6cff89;white-space:nowrap}
+.leader-row .prize-amount{color:#ffe76a}
+
+@media(max-width:600px){
+  .prize-distribution-head{align-items:flex-start;flex-direction:column}
+  .prize-distribution-head>strong{align-self:flex-start}
+}

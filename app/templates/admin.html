@@ -102,7 +102,24 @@
             <small class="field-help">Usado somente em Grupos + mata-mata.</small>
           </div>
           <div class="field"><label>Taxa de inscrição</label><input type="number" min="0" step="0.01" name="registration_fee" value="0"></div>
-          <div class="field"><label>Premiação</label><input type="number" min="0" step="0.01" name="prize" value="50"></div>
+          <div class="field">
+            <label>Premiação total</label>
+            <input type="number" min="0" step="0.01" name="prize" value="50">
+            <small class="field-help">Se não informar os valores abaixo, o total será dividido igualmente.</small>
+          </div>
+          <div class="field">
+            <label>Quantidade de colocados premiados</label>
+            <input type="number" min="1" max="20" name="prize_places" value="1" required>
+            <small class="field-help">Exemplo: 5 para premiar do 1º ao 5º colocado.</small>
+          </div>
+          <div class="field span-2">
+            <label>Valores por colocação</label>
+            <input name="prize_distribution" placeholder="Ex.: 50; 40; 30; 20; 10">
+            <small class="field-help">
+              Separe os valores com ponto e vírgula, na ordem do 1º ao último premiado.
+              Deixe vazio para dividir a premiação total igualmente.
+            </small>
+          </div>
           <div class="field"><label>Data e horário</label><input name="starts_at" value="A definir"></div>
           <div class="field"><label>Tema</label><select name="color_theme"><option value="green">Verde</option><option value="purple">Roxo</option><option value="cyan">Azul</option><option value="orange">Laranja</option></select></div>
           <div class="field span-2"><label>Regulamento</label><textarea name="rules"></textarea></div>

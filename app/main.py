@@ -1,6 +1,8 @@
 import os
+import re
 import shutil
 from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import quote
@@ -19,7 +21,7 @@ from .integrations import notify_user, send_email
 from .models import (
     Achievement, AdminUser, AuditLog, Coupon, Evidence, Match, MatchMessage,
     Notification, PasswordReset, Payment, Registration, Report, Season,
-    SupportTicket, Team, TeamMember, Tournament, User, UserAchievement,
+    SupportTicket, Team, TeamMember, Tournament, TournamentPrize, User, UserAchievement,
 )
 from .security import hash_password, token_urlsafe, verify_password
 from .services import (
@@ -92,6 +94,134 @@ def minimum_entries_for_schedule(tournament: Tournament) -> int:
     if tournament.competition_format == "league":
         return 2
     return max(2, tournament.group_size)
+
+
+def _money(value: Decimal | float | int | str) -> Decimal:
+    return Decimal(str(value or 0)).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
+
+
+def parse_prize_distribution(
+    prize_places: int,
+    distribution: str,
+    total_prize: float,
+) -> list[Decimal]:
+    """
+    Retorna um valor para cada colocação premiada.
+
+    Exemplos aceitos:
+    50; 30; 20
+    50
+    50,00; 30,00; 20,00
+
+    Se o campo estiver vazio, divide o prêmio total igualmente.
+    """
+    if prize_places < 1 or prize_places > 20:
+        raise ValueError("Escolha entre 1 e 20 colocados premiados.")
+
+    raw = (distribution or "").strip()
+    if raw:
+        if ";" in raw or "\n" in raw:
+            tokens = [
+                token.strip()
+                for token in re.split(r"[;\n]+", raw)
+                if token.strip()
+            ]
+        elif prize_places == 1:
+            tokens = [raw]
+        else:
+            tokens = [
+                token.strip()
+                for token in raw.split(",")
+                if token.strip()
+            ]
+
+        if len(tokens) != prize_places:
+            raise ValueError(
+                f"Informe exatamente {prize_places} valor(es), "
+                "um para cada colocação premiada."
+            )
+
+        amounts: list[Decimal] = []
+        for token in tokens:
+            clean = token.replace("R$", "").replace(" ", "")
+            if "," in clean:
+                clean = clean.replace(".", "").replace(",", ".")
+            try:
+                amount = _money(Decimal(clean))
+            except (InvalidOperation, ValueError):
+                raise ValueError(f"Valor de premiação inválido: {token}.")
+            if amount < 0:
+                raise ValueError("Os valores da premiação não podem ser negativos.")
+            amounts.append(amount)
+        return amounts
+
+    total = _money(max(0, total_prize))
+    base = (total / prize_places).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
+    amounts = [base for _ in range(prize_places)]
+    difference = total - sum(amounts, Decimal("0.00"))
+    amounts[-1] = _money(amounts[-1] + difference)
+    return amounts
+
+
+def save_tournament_prizes(
+    db: Session,
+    tournament: Tournament,
+    amounts: list[Decimal],
+) -> None:
+    db.query(TournamentPrize).filter(
+        TournamentPrize.tournament_id == tournament.id
+    ).delete(synchronize_session=False)
+
+    for place, amount in enumerate(amounts, start=1):
+        db.add(TournamentPrize(
+            tournament_id=tournament.id,
+            place=place,
+            amount=amount,
+        ))
+
+    tournament.prize = sum(amounts, Decimal("0.00"))
+    db.flush()
+
+
+def tournament_prize_awards(
+    db: Session,
+    tournament: Tournament,
+) -> list[dict[str, int | float]]:
+    rows = db.scalars(
+        select(TournamentPrize)
+        .where(TournamentPrize.tournament_id == tournament.id)
+        .order_by(TournamentPrize.place)
+    ).all()
+
+    if rows:
+        return [
+            {"place": row.place, "amount": float(row.amount)}
+            for row in rows
+        ]
+
+    # Compatibilidade com campeonatos criados antes desta atualização.
+    return [{
+        "place": 1,
+        "amount": float(tournament.prize or 0),
+    }]
+
+
+def tournament_prize_form(
+    db: Session,
+    tournament: Tournament,
+) -> tuple[int, str]:
+    awards = tournament_prize_awards(db, tournament)
+    values = "; ".join(
+        f"{award['amount']:.2f}".replace(".", ",")
+        for award in awards
+    )
+    return len(awards), values
 
 
 @app.on_event("startup")
@@ -474,6 +604,8 @@ def tournament_page(
         for name in groups:
             groups[name] = sorted_group(groups[name])
 
+    prize_awards = tournament_prize_awards(db, tournament)
+
     matches = db.scalars(
         select(Match)
         .options(
@@ -496,6 +628,8 @@ def tournament_page(
             teams=teams,
             groups=groups,
             league_table=league_table,
+            prize_awards=prize_awards,
+            prize_places=len(prize_awards),
             matches=matches,
         ),
     )
@@ -1039,6 +1173,11 @@ def admin_tournament_manage(
     ]
 
     counts = tournament_registration_counts(db, tournament.id)
+    prize_places, prize_distribution_value = tournament_prize_form(
+        db,
+        tournament,
+    )
+    prize_awards = tournament_prize_awards(db, tournament)
     all_tournaments = db.scalars(
         select(Tournament).order_by(Tournament.name)
     ).all()
@@ -1051,6 +1190,9 @@ def admin_tournament_manage(
         matches=matches,
         available_users=available_users,
         counts=counts,
+        prize_places=prize_places,
+        prize_distribution_value=prize_distribution_value,
+        prize_awards=prize_awards,
         can_draw=counts["approved"] >= minimum_entries_for_schedule(tournament),
         registration_label=registration_label,
         registration_meta=registration_meta,
@@ -1072,6 +1214,8 @@ def admin_edit_tournament(
     group_size: Annotated[int, Form()] = 4,
     registration_fee: Annotated[float, Form()] = 0,
     prize: Annotated[float, Form()] = 0,
+    prize_places: Annotated[int, Form()] = 1,
+    prize_distribution: Annotated[str, Form()] = "",
     starts_at: Annotated[str, Form()] = "A definir",
     color_theme: Annotated[str, Form()] = "green",
     rules: Annotated[str, Form()] = "",
@@ -1103,6 +1247,11 @@ def admin_edit_tournament(
             "O campeonato precisa de pelo menos 2 vagas.",
             f"/admin/campeonato/{tournament_id}",
         )
+    if prize_places > max_entries:
+        return admin_redirect(
+            "A quantidade de premiados não pode ser maior que o número de vagas.",
+            f"/admin/campeonato/{tournament_id}",
+        )
     if competition_format == "groups_knockout":
         if group_size < 2:
             return admin_redirect(
@@ -1117,6 +1266,18 @@ def admin_edit_tournament(
     if league_turns not in {1, 2}:
         return admin_redirect(
             "Escolha 1 ou 2 turnos.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+
+    try:
+        prize_amounts = parse_prize_distribution(
+            prize_places,
+            prize_distribution,
+            prize,
+        )
+    except ValueError as exc:
+        return admin_redirect(
+            str(exc),
             f"/admin/campeonato/{tournament_id}",
         )
 
@@ -1144,13 +1305,14 @@ def admin_edit_tournament(
     tournament.max_entries = max_entries
     tournament.group_size = group_size
     tournament.registration_fee = max(0, registration_fee)
-    tournament.prize = max(0, prize)
+    tournament.prize = sum(prize_amounts, Decimal("0.00"))
     tournament.starts_at = starts_at.strip() or "A definir"
     tournament.color_theme = color_theme
     tournament.rules = rules.strip()
     tournament.status = status
 
     try:
+        save_tournament_prizes(db, tournament, prize_amounts)
         db.commit()
     except Exception as exc:
         db.rollback()
@@ -1166,11 +1328,14 @@ def admin_edit_tournament(
         tournament.id,
         (
             f"{tournament.name}; format={competition_format}; "
-            f"league_turns={league_turns}"
+            f"league_turns={league_turns}; prize_places={prize_places}"
         ),
     )
     return admin_redirect(
-        "Campeonato atualizado com sucesso.",
+        (
+            f"Campeonato atualizado com {prize_places} "
+            "colocado(s) premiado(s)."
+        ),
         f"/admin/campeonato/{tournament_id}",
     )
 @app.post("/admin/campeonato/{tournament_id}/adicionar-jogador")
@@ -1511,6 +1676,8 @@ def admin_create_tournament(
     group_size: Annotated[int, Form()] = 4,
     registration_fee: Annotated[float, Form()] = 0,
     prize: Annotated[float, Form()] = 0,
+    prize_places: Annotated[int, Form()] = 1,
+    prize_distribution: Annotated[str, Form()] = "",
     starts_at: Annotated[str, Form()] = "A definir",
     color_theme: Annotated[str, Form()] = "green",
     rules: Annotated[str, Form()] = "",
@@ -1528,6 +1695,10 @@ def admin_create_tournament(
         return admin_redirect("Geração inválida.")
     if max_entries < 2:
         return admin_redirect("O campeonato precisa de pelo menos 2 vagas.")
+    if prize_places > max_entries:
+        return admin_redirect(
+            "A quantidade de premiados não pode ser maior que o número de vagas."
+        )
     if competition_format == "groups_knockout":
         if group_size < 2:
             return admin_redirect("O grupo precisa ter pelo menos 2 participantes.")
@@ -1537,6 +1708,15 @@ def admin_create_tournament(
             )
     if league_turns not in {1, 2}:
         return admin_redirect("Escolha 1 ou 2 turnos para os pontos corridos.")
+
+    try:
+        prize_amounts = parse_prize_distribution(
+            prize_places,
+            prize_distribution,
+            prize,
+        )
+    except ValueError as exc:
+        return admin_redirect(str(exc))
 
     season = db.scalar(
         select(Season).where(Season.active == True).limit(1)
@@ -1553,7 +1733,7 @@ def admin_create_tournament(
         max_entries=max_entries,
         group_size=group_size,
         registration_fee=max(0, registration_fee),
-        prize=max(0, prize),
+        prize=sum(prize_amounts, Decimal("0.00")),
         status="open",
         starts_at=starts_at.strip() or "A definir",
         color_theme=color_theme,
@@ -1562,6 +1742,8 @@ def admin_create_tournament(
 
     try:
         db.add(tournament)
+        db.flush()
+        save_tournament_prizes(db, tournament, prize_amounts)
         db.commit()
         db.refresh(tournament)
     except Exception as exc:
@@ -1575,10 +1757,12 @@ def admin_create_tournament(
         tournament.id,
         (
             f"{tournament.name}; format={competition_format}; "
-            f"league_turns={league_turns}"
+            f"league_turns={league_turns}; prize_places={prize_places}"
         ),
     )
-    return admin_redirect("Campeonato criado com sucesso.")
+    return admin_redirect(
+        f"Campeonato criado com {prize_places} colocado(s) premiado(s)."
+    )
 @app.post("/admin/campeonato/{tournament_id}/status")
 def admin_tournament_status(tournament_id: int, request: Request, status: Annotated[str, Form()], db: Session = Depends(get_db)):
     require_admin(request)

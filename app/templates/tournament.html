@@ -31,12 +31,46 @@
 
       <div class="tournament-summary-grid">
         <div><span>Inscritos</span><strong>{{ registrations|length }}/{{ tournament.max_entries }}</strong></div>
-        <div><span>Premiação</span><strong>R$ {{ '%.2f'|format(tournament.prize) }}</strong></div>
+        <div>
+          <span>Premiação total</span>
+          <strong>R$ {{ '%.2f'|format(tournament.prize) }}</strong>
+        </div>
+        <div>
+          <span>Premiados</span>
+          <strong>{{ prize_places }} colocado(s)</strong>
+        </div>
         <div><span>Taxa</span><strong>R$ {{ '%.2f'|format(tournament.registration_fee) }}</strong></div>
         <div>
           <span>Formato</span>
           <strong>{{ 'Pontos corridos' if tournament.competition_format == 'league' else 'Grupos + mata-mata' }}</strong>
         </div>
+      </div>
+
+      <div class="prize-distribution-panel">
+        <div class="prize-distribution-head">
+          <div>
+            <span class="eyebrow">FAIXA DE PREMIAÇÃO</span>
+            <h3>💰 Premiação por colocação</h3>
+          </div>
+          <strong>{{ prize_places }} premiado(s)</strong>
+        </div>
+        <div class="prize-distribution-list">
+          {% for award in prize_awards %}
+            <div class="{% if award.place == 1 %}first-prize{% endif %}">
+              <span>{{ award.place }}º lugar</span>
+              <strong>R$ {{ '%.2f'|format(award.amount) }}</strong>
+            </div>
+          {% endfor %}
+        </div>
+        {% if tournament.competition_format == 'league' %}
+          <small>
+            Os {{ prize_places }} primeiros colocados da classificação final entram na faixa de premiação.
+          </small>
+        {% else %}
+          <small>
+            A distribuição foi definida para este campeonato. A organização confirmará as posições finais.
+          </small>
+        {% endif %}
       </div>
 
       {% if user and tournament.status=='open' %}
@@ -98,13 +132,17 @@
           <thead>
             <tr>
               <th>#</th><th>Participante</th><th>J</th><th>V</th><th>E</th><th>D</th>
-              <th>GP</th><th>GC</th><th>SG</th><th>Pts</th>
+              <th>GP</th><th>GC</th><th>SG</th><th>Pts</th><th>Prêmio</th>
             </tr>
           </thead>
           <tbody>
           {% for r in league_table %}
-            <tr class="{% if loop.index == 1 %}leader-row{% endif %}">
-              <td>{{ loop.index }}</td>
+            {% set award = prize_awards[loop.index0] if loop.index <= prize_places else none %}
+            <tr class="{% if loop.index == 1 %}leader-row{% elif award %}prize-row{% endif %}">
+              <td>
+                {% if award %}<span class="prize-position">💰</span>{% endif %}
+                {{ loop.index }}
+              </td>
               <td>{{ r.team.name if r.team else r.user.name }}</td>
               <td>{{ r.played }}</td>
               <td>{{ r.wins }}</td>
@@ -114,9 +152,16 @@
               <td>{{ r.goals_against }}</td>
               <td>{{ r.goals_for-r.goals_against }}</td>
               <td><strong>{{ r.points }}</strong></td>
+              <td>
+                {% if award %}
+                  <strong class="prize-amount">R$ {{ '%.2f'|format(award.amount) }}</strong>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
             </tr>
           {% else %}
-            <tr><td colspan="10">A classificação aparecerá quando houver participantes aprovados.</td></tr>
+            <tr><td colspan="11">A classificação aparecerá quando houver participantes aprovados.</td></tr>
           {% endfor %}
           </tbody>
         </table>

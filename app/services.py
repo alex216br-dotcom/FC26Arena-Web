@@ -5,8 +5,9 @@ from itertools import combinations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .models import (
-    Achievement, AuditLog, Evidence, Match, MatchMessage, Registration,
-    Report, TeamMember, Tournament, User, UserAchievement
+    Achievement, AuditLog, Evidence, Match, MatchMessage, Notification,
+    Registration, Report, TeamMember, Tournament, TournamentPrize, User,
+    UserAchievement
 )
 
 def slugify(value: str) -> str:
@@ -343,6 +344,41 @@ def finish_league_if_ready(db: Session, tournament: Tournament):
             award_achievement(db, user, "CHAMPION")
         if champion.team:
             champion.team.titles += 1
+
+        prize_rows = db.scalars(
+            select(TournamentPrize)
+            .where(TournamentPrize.tournament_id == tournament.id)
+            .order_by(TournamentPrize.place)
+        ).all()
+
+        # Compatibilidade com campeonatos antigos sem distribuição cadastrada.
+        if not prize_rows and tournament.prize is not None:
+            prize_rows = [
+                TournamentPrize(
+                    tournament_id=tournament.id,
+                    place=1,
+                    amount=tournament.prize,
+                )
+            ]
+
+        for prize in prize_rows:
+            index = prize.place - 1
+            if index < 0 or index >= len(table):
+                continue
+
+            registration = table[index]
+            for user in registration_users(db, registration):
+                db.add(Notification(
+                    user_id=user.id,
+                    channel="site",
+                    subject=f"{prize.place}º lugar premiado",
+                    body=(
+                        f"Você terminou {tournament.name} em "
+                        f"{prize.place}º lugar e entrou na premiação de "
+                        f"R$ {float(prize.amount):.2f}."
+                    ),
+                    status="sent",
+                ))
 
     db.commit()
 
