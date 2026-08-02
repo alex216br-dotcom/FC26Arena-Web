@@ -259,3 +259,29 @@ No formulário de criação e edição do campeonato:
 - O administrador pode marcar: aguardando dados, dados recebidos, processando ou pago.
 - Ao marcar como pago, o campeão recebe uma notificação.
 - Todas as mensagens e alterações ficam vinculadas à premiação.
+
+
+## Arena Duelo Rápido contínua e simultânea
+
+- Cada 2 pagamentos aprovados criam automaticamente um confronto.
+- A arena não fecha após formar o primeiro par.
+- Vários confrontos podem ser disputados simultaneamente.
+- Cada confronto possui uma Sala PVP independente.
+- Ao confirmar um resultado, apenas aquele duelo é encerrado.
+- O vencedor recebe uma premiação própria vinculada àquela partida.
+- Vencedor e perdedor ficam liberados para se inscrever novamente.
+- A inscrição existente do jogador é reutilizada, preservando a compatibilidade com o banco atual.
+- O histórico de partidas e premiações anteriores permanece disponível.
+
+
+## Regras padrão das partidas
+
+Nos campeonatos normais:
+- duração de 5 minutos por tempo;
+- elenco obrigatório Online;
+- times clássicos permitidos;
+- seleções permitidas;
+- empate em mata-mata decidido na prorrogação e nos pênaltis;
+- resultado confirmado pelos dois jogadores na Sala PVP.
+
+A Arena Duelo Rápido não foi alterada e mantém suas próprias regras.

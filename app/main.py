@@ -27,7 +27,8 @@ from .models import (
 from .security import hash_password, token_urlsafe, verify_password
 from .services import (
     audit, clear_tournament_matches, entry_name, generate_groups,
-    generate_league, process_confirmed_result, registration_users,
+    generate_league, pair_quick_duel_waiting_players,
+    process_confirmed_result, registration_users,
     seed_achievements, sorted_group, unique_slug,
 )
 
@@ -102,6 +103,41 @@ def ensure_tournament_format_columns():
             for statement in statements:
                 connection.execute(text(statement))
 
+    # Atualiza premiações antigas para permitir uma conversa por duelo.
+    inspector = inspect(engine)
+    if "prize_conversations" in inspector.get_table_names():
+        prize_columns = {
+            column["name"]
+            for column in inspector.get_columns("prize_conversations")
+        }
+        with engine.begin() as connection:
+            if "match_id" not in prize_columns:
+                connection.execute(text(
+                    "ALTER TABLE prize_conversations "
+                    "ADD COLUMN match_id INTEGER NULL"
+                ))
+            if engine.dialect.name == "postgresql":
+                connection.execute(text(
+                    "ALTER TABLE prize_conversations "
+                    "DROP CONSTRAINT IF EXISTS uq_prize_conversation_winner"
+                ))
+
+
+
+DEFAULT_MATCH_RULES = (
+    "• Duração da partida: 5 minutos por tempo.\n"
+    "• Elenco obrigatório: Online.\n"
+    "• São permitidos times clássicos e seleções.\n"
+    "• Em partidas eliminatórias, empate deve ser decidido na prorrogação e nos pênaltis.\n"
+    "• O resultado precisa ser confirmado pelos dois jogadores na Sala PVP."
+)
+
+
+def normal_tournament_rules(rules: str | None) -> str:
+    """Aplica regras padrão somente nos campeonatos normais."""
+    clean = (rules or "").strip()
+    return clean or DEFAULT_MATCH_RULES
+
 
 def minimum_entries_for_schedule(tournament: Tournament) -> int:
     if tournament.competition_format == "league":
@@ -110,56 +146,8 @@ def minimum_entries_for_schedule(tournament: Tournament) -> int:
 
 
 def start_quick_duel_if_ready(db: Session, tournament: Tournament) -> bool:
-    """Fecha as vagas e cria a final quando os 2 pagamentos forem aprovados."""
-    if not tournament.quick_duel:
-        return False
-
-    approved = db.scalars(
-        select(Registration).where(
-            Registration.tournament_id == tournament.id,
-            Registration.status == "approved",
-        )
-    ).all()
-    if len(approved) != 2:
-        return False
-
-    existing_match = db.scalar(
-        select(Match.id).where(Match.tournament_id == tournament.id)
-    )
-    if existing_match:
-        return False
-
-    tournament.status = "closed"
-    tournament.mode = "1x1"
-    tournament.competition_format = "league"
-    tournament.league_turns = 1
-    tournament.max_entries = 2
-    generate_league(db, tournament)
-
-    match = db.scalar(
-        select(Match).where(Match.tournament_id == tournament.id)
-    )
-    if match:
-        match.round_name = (
-            "Final — melhor de 3"
-            if tournament.duel_series == 3
-            else "Final — partida única"
-        )
-        match.group_name = "Duelo Rápido"
-        db.commit()
-
-    for registration in approved:
-        for recipient in registration_users(db, registration):
-            notify_user(
-                db,
-                recipient,
-                "Duelo Rápido liberado",
-                (
-                    f"O campeonato {tournament.name} completou 2 jogadores. "
-                    "Sua final e a Sala PVP já estão disponíveis no painel."
-                ),
-            )
-    return True
+    """Forma todos os pares disponíveis sem fechar a arena."""
+    return pair_quick_duel_waiting_players(db, tournament) > 0
 
 
 def _money(value: Decimal | float | int | str) -> Decimal:
@@ -801,7 +789,31 @@ def registration_success(
         )
     ) or 0
 
-    remaining_slots = max(0, tournament.max_entries - current_entries)
+    if tournament.quick_duel:
+        waiting = [
+            item
+            for item in db.scalars(
+                select(Registration).where(
+                    Registration.tournament_id == tournament.id,
+                    Registration.status == "approved",
+                )
+            ).all()
+            if not db.scalar(
+                select(Match.id).where(
+                    (
+                        (Match.home_registration_id == item.id)
+                        | (Match.away_registration_id == item.id)
+                    ),
+                    Match.status.in_(
+                        ["scheduled", "awaiting_confirmation", "disputed"]
+                    ),
+                )
+            )
+        ]
+        current_entries = len(waiting)
+        remaining_slots = 1 if current_entries % 2 else 0
+    else:
+        remaining_slots = max(0, tournament.max_entries - current_entries)
 
     return templates.TemplateResponse(
         "registration_success.html",
@@ -832,7 +844,7 @@ def tournament_register(
         Registration.tournament_id == tournament.id,
         Registration.status.in_(["pending", "approved"]),
     ))
-    if total >= tournament.max_entries:
+    if not tournament.quick_duel and total >= tournament.max_entries:
         raise HTTPException(400, "Vagas preenchidas.")
 
     if user.generation != tournament.generation:
@@ -850,10 +862,37 @@ def tournament_register(
         )
 
     if tournament.mode == "1x1":
-        existing = db.scalar(select(Registration).where(Registration.tournament_id == tournament.id, Registration.user_id == user.id))
-        if existing:
-            return RedirectResponse(f"/campeonato/{slug}", 303)
-        registration = Registration(tournament_id=tournament.id, user_id=user.id)
+        existing = db.scalar(
+            select(Registration)
+            .where(
+                Registration.tournament_id == tournament.id,
+                Registration.user_id == user.id,
+            )
+            .order_by(Registration.id.desc())
+        )
+
+        if tournament.quick_duel and existing:
+            if existing.status in {"pending", "approved"}:
+                return RedirectResponse(f"/campeonato/{slug}", 303)
+
+            registration = existing
+            registration.status = "pending"
+            registration.payment_status = "pending"
+            registration.group_name = None
+            registration.points = 0
+            registration.played = 0
+            registration.wins = 0
+            registration.draws = 0
+            registration.losses = 0
+            registration.goals_for = 0
+            registration.goals_against = 0
+        else:
+            if existing:
+                return RedirectResponse(f"/campeonato/{slug}", 303)
+            registration = Registration(
+                tournament_id=tournament.id,
+                user_id=user.id,
+            )
     else:
         if not team_id:
             raise HTTPException(400, "Escolha uma equipe.")
@@ -1220,8 +1259,11 @@ def match_result(match_id: int, request: Request, home_score: Annotated[int, For
     match = db.get(Match, match_id)
     if not match or not (registration_contains_user(db, match.home, user) or registration_contains_user(db, match.away, user)):
         raise HTTPException(404)
-    if match.phase == "knockout" and home_score == away_score:
-        raise HTTPException(400, "Mata-mata não pode terminar empatado.")
+    if (match.phase == "knockout" or match.tournament.quick_duel) and home_score == away_score:
+        raise HTTPException(
+            400,
+            "Esta disputa precisa ter vencedor. Jogue prorrogação e pênaltis.",
+        )
     match.home_score = max(0, home_score)
     match.away_score = max(0, away_score)
     match.result_submitted_by_user_id = user.id
@@ -2159,6 +2201,9 @@ def admin_edit_tournament(
             f"/admin/campeonato/{tournament_id}",
         )
 
+    if not is_quick_duel:
+        rules = normal_tournament_rules(rules)
+
     tournament.name = name.strip()
     tournament.mode = mode
     tournament.competition_format = competition_format
@@ -2601,6 +2646,9 @@ def admin_create_tournament(
     season = db.scalar(
         select(Season).where(Season.active == True).limit(1)
     )
+
+    if not is_quick_duel:
+        rules = normal_tournament_rules(rules)
 
     tournament = Tournament(
         season_id=season.id if season else None,

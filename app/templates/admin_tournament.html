@@ -75,8 +75,8 @@
           <label class="quick-duel-check">
             <input type="checkbox" name="quick_duel" value="1" {% if tournament.quick_duel %}checked{% endif %}>
             <span>
-              <strong>⚡ Duelo Rápido 1x1</strong>
-              <small>Limite de 2 jogadores, final única automática e somente o campeão premiado.</small>
+              <strong>⚡ Arena Duelo Rápido 1x1</strong>
+              <small>Fila contínua, pareamento automático e duelos simultâneos.</small>
             </span>
           </label>
         </div>
@@ -167,7 +167,13 @@
           </select>
         </div>
 
-        <div class="field span-2"><label>Regulamento específico</label><textarea name="rules">{{ tournament.rules }}</textarea></div>
+        <div class="field span-2">
+          <label>Regras das partidas</label>
+          <textarea name="rules" rows="7">{{ tournament.rules }}</textarea>
+          <small class="field-help">
+            Padrão recomendado: 5 minutos por tempo, elenco online, times clássicos e seleções permitidos.
+          </small>
+        </div>
 
         <div class="span-2 prize-config-preview">
           <strong>Premiação configurada atualmente</strong>
@@ -190,7 +196,13 @@
 
     <section id="sorteio" class="admin-card draw-card">
       <div>
-        {% if tournament.competition_format == 'league' %}
+        {% if tournament.quick_duel %}
+          <h2>⚡ Arena automática</h2>
+          <p>
+            Cada 2 inscrições aprovadas criam uma Sala PVP.
+            A arena permanece aberta para outros jogadores e novos confrontos.
+          </p>
+        {% elif tournament.competition_format == 'league' %}
           <h2>📅 Tabela de pontos corridos</h2>
           <p>
             Há <strong>{{ counts.approved }}</strong> inscrição(ões) aprovada(s).
@@ -213,12 +225,18 @@
       </div>
 
       <div class="admin-actions">
-        <form method="post" action="/admin/campeonato/{{ tournament.id }}/sortear"
-              onsubmit="return confirm('{{ 'Gerar novamente a tabela apagará as partidas e Salas PVP atuais. Os inscritos serão mantidos. Continuar?' if tournament.competition_format == 'league' else 'Refazer o sorteio apagará as Salas PVP, grupos e partidas atuais. Os inscritos serão mantidos. Continuar?' }}')">
-          <button type="submit" class="btn btn-primary" {% if not can_draw %}disabled{% endif %}>
-            {{ '📅 Gerar tabela da liga' if tournament.competition_format == 'league' else '🎲 Sortear grupos e partidas' }}
+        {% if tournament.quick_duel %}
+          <button type="button" class="btn btn-primary" disabled>
+            ⚡ Pareamento automático ativo
           </button>
-        </form>
+        {% else %}
+          <form method="post" action="/admin/campeonato/{{ tournament.id }}/sortear"
+                onsubmit="return confirm('{{ 'Gerar novamente a tabela apagará as partidas e Salas PVP atuais. Os inscritos serão mantidos. Continuar?' if tournament.competition_format == 'league' else 'Refazer o sorteio apagará as Salas PVP, grupos e partidas atuais. Os inscritos serão mantidos. Continuar?' }}')">
+            <button type="submit" class="btn btn-primary" {% if not can_draw %}disabled{% endif %}>
+              {{ '📅 Gerar tabela da liga' if tournament.competition_format == 'league' else '🎲 Sortear grupos e partidas' }}
+            </button>
+          </form>
+        {% endif %}
 
         <form method="post" action="/admin/campeonato/{{ tournament.id }}/limpar-sorteio"
               onsubmit="return confirm('Apagar as Salas PVP e partidas atuais? Os jogadores inscritos serão mantidos.')">

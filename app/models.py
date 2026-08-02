@@ -189,13 +189,6 @@ class Report(Base):
 
 class PrizeConversation(Base):
     __tablename__ = "prize_conversations"
-    __table_args__ = (
-        UniqueConstraint(
-            "tournament_id",
-            "registration_id",
-            name="uq_prize_conversation_winner",
-        ),
-    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     tournament_id: Mapped[int] = mapped_column(
@@ -203,6 +196,9 @@ class PrizeConversation(Base):
     )
     registration_id: Mapped[int] = mapped_column(
         ForeignKey("registrations.id"), index=True
+    )
+    match_id: Mapped[int | None] = mapped_column(
+        ForeignKey("matches.id"), nullable=True, index=True
     )
     amount: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
     status: Mapped[str] = mapped_column(String(30), default="awaiting_data")
@@ -217,6 +213,7 @@ class PrizeConversation(Base):
 
     tournament = relationship("Tournament")
     registration = relationship("Registration")
+    match = relationship("Match")
 
 
 class PrizeMessage(Base):

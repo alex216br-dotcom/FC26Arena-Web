@@ -12,17 +12,48 @@
       foi realizada com sucesso.
     </p>
 
-    <div class="success-progress">
-      <div class="success-progress-head">
-        <span>Vagas preenchidas</span>
-        <strong>{{ current_entries }}/{{ tournament.max_entries }}</strong>
+    {% if tournament.quick_duel %}
+      <div class="success-progress">
+        <div class="success-progress-head">
+          <span>Fila do próximo duelo</span>
+          <strong>{{ current_entries }}/2</strong>
+        </div>
+        <div class="success-progress-track">
+          <span style="width: {{ 50 if current_entries == 1 else 100 if current_entries >= 2 else 0 }}%"></span>
+        </div>
       </div>
-      <div class="success-progress-track">
-        <span style="width: {{ ((current_entries / tournament.max_entries) * 100) if tournament.max_entries else 0 }}%"></span>
+    {% else %}
+      <div class="success-progress">
+        <div class="success-progress-head">
+          <span>Vagas preenchidas</span>
+          <strong>{{ current_entries }}/{{ tournament.max_entries }}</strong>
+        </div>
+        <div class="success-progress-track">
+          <span style="width: {{ ((current_entries / tournament.max_entries) * 100) if tournament.max_entries else 0 }}%"></span>
+        </div>
       </div>
-    </div>
+    {% endif %}
 
-    {% if remaining_slots > 0 %}
+    {% if tournament.quick_duel %}
+      <div class="waiting-message">
+        <span>⚡</span>
+        <div>
+          {% if remaining_slots > 0 %}
+            <strong>Você entrou na fila automática</strong>
+            <p>
+              Assim que outro jogador tiver o pagamento aprovado,
+              a Sala PVP será criada automaticamente.
+            </p>
+          {% else %}
+            <strong>Verifique seu painel</strong>
+            <p>
+              Seu adversário pode já ter sido encontrado. Vários duelos
+              podem acontecer ao mesmo tempo e a arena continua aberta.
+            </p>
+          {% endif %}
+        </div>
+      </div>
+    {% elif remaining_slots > 0 %}
       <div class="waiting-message">
         <span>⏳</span>
         <div>

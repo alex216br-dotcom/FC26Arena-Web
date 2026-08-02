@@ -2,7 +2,7 @@ import math
 import random
 import re
 from itertools import combinations
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from .models import (
     Achievement, AuditLog, Evidence, Match, MatchMessage, Notification,
@@ -50,14 +50,19 @@ def ensure_champion_prize_conversation(
     db: Session,
     tournament: Tournament,
     champion: Registration,
+    match: Match | None = None,
 ) -> PrizeConversation:
-    """Cria uma única conversa privada de premiação para o campeão."""
-    conversation = db.scalar(
-        select(PrizeConversation).where(
-            PrizeConversation.tournament_id == tournament.id,
-            PrizeConversation.registration_id == champion.id,
-        )
+    """Cria uma conversa de premiação por título ou por Duelo Rápido."""
+    query = select(PrizeConversation).where(
+        PrizeConversation.tournament_id == tournament.id,
+        PrizeConversation.registration_id == champion.id,
     )
+    if match is None:
+        query = query.where(PrizeConversation.match_id.is_(None))
+    else:
+        query = query.where(PrizeConversation.match_id == match.id)
+
+    conversation = db.scalar(query)
     if conversation:
         return conversation
 
@@ -73,6 +78,7 @@ def ensure_champion_prize_conversation(
     conversation = PrizeConversation(
         tournament_id=tournament.id,
         registration_id=champion.id,
+        match_id=match.id if match else None,
         amount=amount or 0,
         status="awaiting_data",
     )
@@ -84,7 +90,7 @@ def ensure_champion_prize_conversation(
         user_id=None,
         sender_type="admin",
         message=(
-            "Parabéns pelo título! O pagamento da premiação será realizado "
+            "Parabéns pela vitória! O pagamento da premiação será realizado "
             "em até 24 horas após o envio e a conferência dos dados. "
             "Envie sua chave Pix, nome do titular e CPF do titular pelo "
             "formulário seguro desta conversa."
@@ -95,9 +101,9 @@ def ensure_champion_prize_conversation(
         db.add(Notification(
             user_id=user.id,
             channel="site",
-            subject="🏆 Você é campeão!",
+            subject="🏆 Você venceu!",
             body=(
-                f"Parabéns pelo título em {tournament.name}! "
+                f"Parabéns pela vitória em {tournament.name}! "
                 "Abra a conversa de premiação no seu painel para enviar "
                 "os dados de recebimento. O pagamento será feito em até 24 horas."
             ),
@@ -106,6 +112,136 @@ def ensure_champion_prize_conversation(
 
     db.flush()
     return conversation
+
+
+
+def quick_duel_registration_has_active_match(
+    db: Session,
+    registration_id: int,
+) -> bool:
+    return bool(db.scalar(
+        select(Match.id).where(
+            (
+                (Match.home_registration_id == registration_id)
+                | (Match.away_registration_id == registration_id)
+            ),
+            Match.status.in_(
+                ["scheduled", "awaiting_confirmation", "disputed"]
+            ),
+        )
+    ))
+
+
+def pair_quick_duel_waiting_players(
+    db: Session,
+    tournament: Tournament,
+) -> int:
+    """
+    Cada par de inscrições aprovadas e sem partida ativa recebe uma Sala PVP.
+    Quantos pares existirem podem jogar simultaneamente.
+    """
+    if not tournament.quick_duel:
+        return 0
+
+    approved = db.scalars(
+        select(Registration)
+        .where(
+            Registration.tournament_id == tournament.id,
+            Registration.status == "approved",
+        )
+        .order_by(Registration.id)
+    ).all()
+
+    waiting = [
+        registration
+        for registration in approved
+        if not quick_duel_registration_has_active_match(
+            db, registration.id
+        )
+    ]
+
+    created = 0
+    existing_count = db.scalar(
+        select(func.count())
+        .select_from(Match)
+        .where(Match.tournament_id == tournament.id)
+    ) or 0
+
+    while len(waiting) >= 2:
+        home = waiting.pop(0)
+        away = waiting.pop(0)
+        duel_number = existing_count + created + 1
+
+        db.add(Match(
+            tournament_id=tournament.id,
+            phase="quick_duel",
+            round_name=(
+                f"Duelo #{duel_number} — melhor de 3"
+                if tournament.duel_series == 3
+                else f"Duelo #{duel_number} — partida única"
+            ),
+            round_order=duel_number,
+            group_name="Arena Duelo Rápido",
+            home_registration_id=home.id,
+            away_registration_id=away.id,
+            status="scheduled",
+        ))
+        db.flush()
+
+        for registration in (home, away):
+            for recipient in registration_users(db, registration):
+                db.add(Notification(
+                    user_id=recipient.id,
+                    channel="site",
+                    subject="⚡ Adversário encontrado",
+                    body=(
+                        f"Seu duelo em {tournament.name} está pronto. "
+                        "Abra a Sala PVP no painel."
+                    ),
+                    status="sent",
+                ))
+
+        created += 1
+
+    tournament.status = "open"
+    db.commit()
+    return created
+
+
+def finish_quick_duel_match(
+    db: Session,
+    match: Match,
+) -> None:
+    """
+    Encerra somente este confronto, gera a premiação e deixa a arena aberta.
+    """
+    tournament = match.tournament
+    champion = db.get(Registration, match.winner_registration_id)
+    if not champion:
+        return
+
+    for user in registration_users(db, champion):
+        user.titles += 1
+        award_achievement(db, user, "CHAMPION")
+
+    ensure_champion_prize_conversation(
+        db,
+        tournament,
+        champion,
+        match=match,
+    )
+
+    # Os dois jogadores ficam livres para realizar uma nova inscrição.
+    for registration in (match.home, match.away):
+        if registration:
+            registration.status = "finished"
+
+    tournament.status = "open"
+    db.commit()
+    recalculate_global_stats(db)
+
+    # Caso já existam outros jogadores esperando, forma novos pares.
+    pair_quick_duel_waiting_players(db, tournament)
 
 
 def award_achievement(db: Session, user: User, code: str):
@@ -600,6 +736,12 @@ def process_confirmed_result(db: Session, match: Match):
         else match.away_registration_id if match.away_score > match.home_score
         else None
     )
+    db.commit()
+    db.refresh(match)
+
+    if match.tournament.quick_duel:
+        finish_quick_duel_match(db, match)
+        return
 
     reset_registration_stats(db, match.tournament_id)
     recalculate_global_stats(db)

@@ -127,8 +127,8 @@
             <label class="quick-duel-check">
               <input type="checkbox" name="quick_duel" value="1" data-quick-duel-toggle>
               <span>
-                <strong>⚡ Duelo Rápido 1x1</strong>
-                <small>Cria um campeonato de 2 jogadores, final automática e apenas 1 campeão premiado.</small>
+                <strong>⚡ Arena Duelo Rápido 1x1</strong>
+                <small>Fila contínua: cada 2 jogadores formam um confronto e vários duelos podem ocorrer ao mesmo tempo.</small>
               </span>
             </label>
           </div>
@@ -169,7 +169,7 @@
             <div class="duel-finance-preview">
               <span>Arrecadação: <strong data-duel-total>R$ 0,00</strong></span>
               <span>Premiação: <strong data-duel-prize>R$ 0,00</strong></span>
-              <span>Administração: <strong data-duel-admin>R$ 0,00</strong></span>
+              <span>Administração por duelo: <strong data-duel-admin>R$ 0,00</strong></span>
             </div>
           </div>
           <div class="field">
@@ -192,7 +192,17 @@
           </div>
           <div class="field"><label>Data e horário</label><input name="starts_at" value="A definir"></div>
           <div class="field"><label>Tema</label><select name="color_theme"><option value="green">Verde</option><option value="purple">Roxo</option><option value="cyan">Azul</option><option value="orange">Laranja</option></select></div>
-          <div class="field span-2"><label>Regulamento</label><textarea name="rules"></textarea></div>
+          <div class="field span-2">
+            <label>Regras das partidas</label>
+            <textarea name="rules" rows="7" data-normal-rules>• Duração da partida: 5 minutos por tempo.
+• Elenco obrigatório: Online.
+• São permitidos times clássicos e seleções.
+• Em partidas eliminatórias, empate deve ser decidido na prorrogação e nos pênaltis.
+• O resultado precisa ser confirmado pelos dois jogadores na Sala PVP.</textarea>
+            <small class="field-help">
+              Estas regras serão usadas nos campeonatos normais. A Arena Duelo Rápido mantém suas próprias regras.
+            </small>
+          </div>
           <div class="span-2"><button class="btn btn-primary">Criar campeonato</button></div>
         </form>
       </details>

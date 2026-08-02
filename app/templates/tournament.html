@@ -13,7 +13,7 @@
       <h1>{{ tournament.name }}</h1>
       {% if tournament.quick_duel %}
         <div class="quick-duel-public-badge">
-          ⚡ Duelo Rápido · 2 jogadores ·
+          ⚡ Arena Duelo Rápido · fila automática ·
           {{ 'Melhor de 3' if tournament.duel_series == 3 else 'Partida única' }}
         </div>
       {% endif %}
@@ -216,7 +216,21 @@
     </section>
   {% endif %}
 
-  {% if matches %}
+  
+{% if tournament.rules and not tournament.quick_duel %}
+<section class="match-rules-box">
+  <div class="match-rules-head">
+    <span>📋</span>
+    <div>
+      <strong>Regras das partidas</strong>
+      <small>Válidas para este campeonato</small>
+    </div>
+  </div>
+  <div class="match-rules-content">{{ tournament.rules }}</div>
+</section>
+{% endif %}
+
+{% if matches %}
     <section class="tournament-matches">
       <div class="matches-section-head">
         <div>
