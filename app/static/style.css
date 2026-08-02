@@ -624,14 +624,53 @@ body.menu-open{overflow:hidden}
 }
 
 
-/* Fluxo de acesso e cadastro pelo campeonato */
-.auth-page{min-height:calc(100vh - 150px);display:grid;place-items:center;padding:46px 18px}
-.auth-card{width:min(470px,100%);padding:28px;border:1px solid #28583a;border-radius:14px;background:linear-gradient(145deg,#091510,#050c09);box-shadow:0 24px 75px #0009}
-.auth-card h1{font-size:34px;margin:9px 0}.auth-card>p{line-height:1.5}
-.auth-main-button,.auth-create-button{display:flex;width:100%;justify-content:center;text-align:center}
-.auth-divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--muted);font-size:12px}
-.auth-divider:before,.auth-divider:after{content:"";height:1px;flex:1;background:#244032}
-.auth-create-button{border-color:#37d655;color:#70ff89;background:#0a2111}
-.auth-create-button:hover{background:#10351a}
-.auth-forgot{display:block;margin-top:17px;text-align:center;color:var(--green);font-weight:700}
-@media(max-width:520px){.auth-page{padding:24px 12px}.auth-card{padding:21px}.auth-card h1{font-size:29px}}
+/* Confirmação de inscrição e mensagem de boa sorte */
+.registration-success-page{padding-top:48px;padding-bottom:64px}
+.registration-success-card{
+  width:min(780px,100%);margin:0 auto;padding:34px;
+  border:1px solid #347548;border-radius:16px;
+  background:
+    radial-gradient(circle at 50% 0,#153d20,#091510 38%,#050c09 78%);
+  box-shadow:0 28px 80px #0009;text-align:center
+}
+.success-trophy{font-size:58px;filter:drop-shadow(0 0 20px #ffe55b55)}
+.registration-success-card h1{
+  margin:10px 0 12px;font-size:clamp(38px,7vw,62px);line-height:.95
+}
+.success-intro{font-size:18px;color:#d1ddd5;line-height:1.6}
+.success-progress{
+  margin:25px 0;padding:17px;border:1px solid #1f4430;
+  border-radius:11px;background:#06100c;text-align:left
+}
+.success-progress-head{display:flex;justify-content:space-between;gap:15px;margin-bottom:10px}
+.success-progress-head strong{color:#73ff91}
+.success-progress-track{height:12px;border-radius:999px;background:#14251c;overflow:hidden}
+.success-progress-track span{
+  display:block;height:100%;min-width:3px;border-radius:999px;
+  background:linear-gradient(90deg,#20d94a,#6cff89);box-shadow:0 0 16px #39ff6a66
+}
+.waiting-message{
+  display:flex;align-items:flex-start;gap:15px;padding:18px;text-align:left;
+  border:1px solid #365b43;border-radius:11px;background:#0a1710
+}
+.waiting-message>span{font-size:31px}
+.waiting-message strong{font-size:18px}.waiting-message p{margin:7px 0 0;color:#c2cec6;line-height:1.55}
+.tournament-full-message{border-color:#997c2f;background:#211c0d}
+.success-next-steps{margin-top:26px;text-align:left}
+.success-next-steps h2{text-align:center}
+.success-next-steps>div{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.success-next-steps article{
+  display:flex;align-items:center;gap:12px;padding:13px;
+  border:1px solid #1c3829;border-radius:9px;background:#06100c
+}
+.success-next-steps article strong{
+  display:grid;place-items:center;flex:0 0 auto;width:31px;height:31px;
+  border-radius:50%;background:var(--green);color:#041006
+}
+.success-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:27px}
+
+@media(max-width:620px){
+  .registration-success-card{padding:23px 17px}
+  .success-next-steps>div{grid-template-columns:1fr}
+  .success-actions{display:grid}.success-actions .btn{width:100%}
+}

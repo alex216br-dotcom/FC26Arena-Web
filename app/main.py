@@ -361,14 +361,6 @@ def registration_contains_user(db: Session, registration: Registration, user: Us
         )))
     return False
 
-def safe_return_path(value: str | None, default: str = "/painel") -> str:
-    """Aceita somente caminhos internos para evitar redirecionamento externo."""
-    path = (value or "").strip()
-    if path.startswith("/") and not path.startswith("//"):
-        return path
-    return default
-
-
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)):
     tournaments = db.scalars(
@@ -388,10 +380,6 @@ def home(request: Request, db: Session = Depends(get_db)):
         prize_total=prize_total,
         ranking=ranking,
         open_register=request.query_params.get("cadastro") == "1",
-        register_return_to=safe_return_path(
-            request.query_params.get("next"),
-            "/painel?novo=1",
-        ),
     ))
 
 
@@ -415,7 +403,6 @@ def register(
     password: Annotated[str, Form()] = "",
     password_confirm: Annotated[str, Form()] = "",
     terms: Annotated[str | None, Form()] = None,
-    return_to: Annotated[str, Form()] = "/painel?novo=1",
     db: Session = Depends(get_db),
 ):
     errors = []
@@ -439,9 +426,7 @@ def register(
         tournaments = db.scalars(select(Tournament).where(Tournament.status != "archived")).all()
         return templates.TemplateResponse("home.html", ctx(
             request, tournaments=tournaments, users_count=0, championships_count=len(tournaments),
-            matches_count=0, prize_total=0, ranking=[], open_register=True,
-            register_errors=errors,
-            register_return_to=safe_return_path(return_to, "/painel?novo=1"),
+            matches_count=0, prize_total=0, ranking=[], open_register=True, register_errors=errors,
         ), status_code=400)
 
     user = User(
@@ -464,7 +449,6 @@ def register(
             request, tournaments=tournaments, users_count=0, championships_count=len(tournaments),
             matches_count=0, prize_total=0, ranking=[], open_register=True,
             register_errors=["WhatsApp, e-mail ou ID EA já cadastrado."],
-            register_return_to=safe_return_path(return_to, "/painel?novo=1"),
         ), status_code=400)
 
     achievement = db.scalar(select(Achievement).where(Achievement.code == "WELCOME"))
@@ -475,29 +459,17 @@ def register(
         db.commit()
     request.session["user_id"] = user.id
     notify_user(db, user, "Bem-vindo ao FC26 Arena", "Sua conta foi criada com sucesso.")
-    return RedirectResponse(
-        safe_return_path(return_to, "/painel?novo=1"),
-        303,
-    )
+    return RedirectResponse("/painel?novo=1", 303)
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
-    return_to = safe_return_path(
-        request.query_params.get("next"),
-        "/painel",
-    )
-    return templates.TemplateResponse(
-        "login.html",
-        ctx(request, error=None, return_to=return_to),
-    )
-
+    return templates.TemplateResponse("login.html", ctx(request, error=None))
 
 @app.post("/login")
 def login(
     request: Request,
     identifier: Annotated[str, Form()],
     password: Annotated[str, Form()],
-    return_to: Annotated[str, Form()] = "/painel",
     db: Session = Depends(get_db),
 ):
     user = db.scalar(select(User).where(or_(
@@ -506,20 +478,10 @@ def login(
         User.ea_id == identifier.strip(),
     )))
     if not user or not verify_password(password, user.password_hash):
-        return templates.TemplateResponse(
-            "login.html",
-            ctx(
-                request,
-                error="Dados incorretos.",
-                return_to=safe_return_path(return_to, "/painel"),
-            ),
-            status_code=400,
-        )
+        return templates.TemplateResponse("login.html", ctx(request, error="Dados incorretos."), status_code=400)
     request.session["user_id"] = user.id
-    return RedirectResponse(
-        safe_return_path(return_to, "/painel"),
-        303,
-    )
+    return RedirectResponse("/painel", 303)
+
 @app.get("/sair")
 def logout(request: Request):
     request.session.clear()
@@ -683,6 +645,53 @@ def tournament_page(
             accessible_match_ids=accessible_match_ids,
         ),
     )
+
+@app.get("/inscricao/{registration_id}/confirmada", response_class=HTMLResponse)
+def registration_success(
+    registration_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = require_user(request, db)
+
+    registration = db.scalar(
+        select(Registration)
+        .options(
+            selectinload(Registration.tournament),
+            selectinload(Registration.user),
+            selectinload(Registration.team),
+        )
+        .where(Registration.id == registration_id)
+    )
+
+    if not registration or not registration_contains_user(db, registration, user):
+        raise HTTPException(404)
+
+    tournament = registration.tournament
+    current_entries = db.scalar(
+        select(func.count())
+        .select_from(Registration)
+        .where(
+            Registration.tournament_id == tournament.id,
+            Registration.status.in_(["pending", "approved"]),
+        )
+    ) or 0
+
+    remaining_slots = max(0, tournament.max_entries - current_entries)
+
+    return templates.TemplateResponse(
+        "registration_success.html",
+        ctx(
+            request,
+            user=user,
+            registration=registration,
+            tournament=tournament,
+            current_entries=current_entries,
+            remaining_slots=remaining_slots,
+        ),
+    )
+
+
 @app.post("/campeonato/{slug}/inscrever")
 def tournament_register(
     slug: str,
@@ -745,8 +754,19 @@ def tournament_register(
         notify_user(db, user, "Pagamento pendente", f"Sua inscrição em {tournament.name} aguarda o pagamento de R$ {amount:.2f}.")
         return RedirectResponse(f"/pagamento/{payment.id}", 303)
 
-    notify_user(db, user, "Inscrição confirmada", f"Você está inscrito em {tournament.name}.")
-    return RedirectResponse(f"/campeonato/{slug}", 303)
+    notify_user(
+        db,
+        user,
+        "Inscrição confirmada",
+        (
+            f"Boa sorte! Você está inscrito em {tournament.name}. "
+            "Aguarde o preenchimento das vagas e o início do campeonato."
+        ),
+    )
+    return RedirectResponse(
+        f"/inscricao/{registration.id}/confirmada",
+        303,
+    )
 
 @app.get("/pagamento/{payment_id}", response_class=HTMLResponse)
 def payment_page(payment_id: int, request: Request, db: Session = Depends(get_db)):

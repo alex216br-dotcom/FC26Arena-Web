@@ -4,7 +4,7 @@
 {% if payment.status == 'pending' %}
   <meta http-equiv="refresh" content="3">
 {% elif payment.status == 'approved' %}
-  <meta http-equiv="refresh" content="2;url=/painel">
+  <meta http-equiv="refresh" content="2;url=/inscricao/{{ payment.registration.id }}/confirmada">
 {% endif %}
 
 <section class="container section">
@@ -18,7 +18,7 @@
         <span class="payment-status-icon">✅</span>
         <div>
           <strong>Pagamento aprovado</strong>
-          <p>Sua inscrição foi confirmada. Você será levado automaticamente ao seu painel.</p>
+          <p>Sua inscrição foi confirmada. Você será levado automaticamente à confirmação da sua inscrição.</p>
         </div>
       {% elif payment.status == 'rejected' %}
         <span class="payment-status-icon">❌</span>
@@ -61,7 +61,7 @@
       </div>
     {% else %}
       <div class="payment-actions">
-        <a class="btn btn-primary" href="/painel">Abrir meu painel</a>
+        <a class="btn btn-primary" href="/inscricao/{{ payment.registration.id }}/confirmada">Continuar inscrição</a>
         <a class="btn" href="/campeonato/{{ payment.registration.tournament.slug }}">Ver campeonato</a>
       </div>
     {% endif %}

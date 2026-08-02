@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Inscrição confirmada — FC26 Arena{% endblock %}
+{% block content %}
+<section class="container section registration-success-page">
+  <div class="registration-success-card">
+    <div class="success-trophy">🏆</div>
+    <span class="eyebrow">INSCRIÇÃO REALIZADA</span>
+    <h1>Boa sorte, {{ user.name }}!</h1>
+
+    <p class="success-intro">
+      Sua inscrição no campeonato <strong>{{ tournament.name }}</strong>
+      foi realizada com sucesso.
+    </p>
+
+    <div class="success-progress">
+      <div class="success-progress-head">
+        <span>Vagas preenchidas</span>
+        <strong>{{ current_entries }}/{{ tournament.max_entries }}</strong>
+      </div>
+      <div class="success-progress-track">
+        <span style="width: {{ ((current_entries / tournament.max_entries) * 100) if tournament.max_entries else 0 }}%"></span>
+      </div>
+    </div>
+
+    {% if remaining_slots > 0 %}
+      <div class="waiting-message">
+        <span>⏳</span>
+        <div>
+          <strong>Agora é só aguardar</strong>
+          <p>
+            Ainda faltam <strong>{{ remaining_slots }} vaga(s)</strong>.
+            Quando o campeonato estiver completo e a tabela for gerada,
+            suas partidas e Salas PVP aparecerão no seu painel.
+          </p>
+        </div>
+      </div>
+    {% else %}
+      <div class="waiting-message tournament-full-message">
+        <span>🔥</span>
+        <div>
+          <strong>As vagas foram preenchidas!</strong>
+          <p>
+            Aguarde a organização gerar a tabela. Você receberá uma notificação
+            quando suas partidas e Salas PVP estiverem disponíveis.
+          </p>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="success-next-steps">
+      <h2>O que acontece agora?</h2>
+      <div>
+        <article><strong>1</strong><span>A organização aguarda o preenchimento das vagas.</span></article>
+        <article><strong>2</strong><span>A tabela, os grupos ou as rodadas serão gerados.</span></article>
+        <article><strong>3</strong><span>Você acessará a Sala PVP para falar com o adversário.</span></article>
+        <article><strong>4</strong><span>Adicionará o ID EA e jogará em Amistosos Online.</span></article>
+      </div>
+    </div>
+
+    <div class="success-actions">
+      <a class="btn btn-primary" href="/painel">Abrir meu painel</a>
+      <a class="btn" href="/campeonato/{{ tournament.slug }}">Voltar ao campeonato</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
