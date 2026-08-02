@@ -31,24 +31,31 @@
           <span>📋</span>
           <div>
             <strong>Regras obrigatórias das partidas</strong>
-            <small>Todos os participantes devem seguir estas configurações</small>
+            <small>Válidas para todos os participantes deste campeonato</small>
           </div>
         </div>
         <div class="match-rules-list">
-          {% for line in display_rules.split('\n') %}
+          {% for line in rules_display.mandatory.split('\n') %}
             {% if line.strip() %}
               <div class="match-rule-item">{{ line }}</div>
             {% endif %}
           {% endfor %}
         </div>
+
+        {% if rules_display.additional %}
+          <div class="additional-rules-box">
+            <strong>Regras adicionais deste campeonato</strong>
+            <div class="match-rules-content">{{ rules_display.additional }}</div>
+          </div>
+        {% endif %}
       </section>
-      {% elif display_rules %}
+      {% elif rules_display.additional %}
       <section class="match-rules-box">
         <div class="match-rules-head">
           <span>📋</span>
           <div><strong>Regras do Duelo Rápido</strong></div>
         </div>
-        <div class="match-rules-content">{{ display_rules }}</div>
+        <div class="match-rules-content">{{ rules_display.additional }}</div>
       </section>
       {% endif %}
 

@@ -834,3 +834,15 @@ button[disabled]{
   color:#6dff8c;
   font-weight:900;
 }
+
+
+.additional-rules-box{
+  margin-top:16px;
+  padding-top:15px;
+  border-top:1px solid #35513d;
+}
+.additional-rules-box>strong{
+  display:block;
+  margin-bottom:8px;
+  color:#ffd872;
+}

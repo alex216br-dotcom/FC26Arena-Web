@@ -139,10 +139,21 @@ def normal_tournament_rules(rules: str | None) -> str:
     return clean or DEFAULT_MATCH_RULES
 
 
-def tournament_display_rules(tournament: Tournament) -> str:
+def tournament_display_rules(tournament: Tournament) -> dict[str, str]:
     if tournament.quick_duel:
-        return (tournament.rules or "").strip()
-    return normal_tournament_rules(tournament.rules)
+        return {
+            "mandatory": "",
+            "additional": (tournament.rules or "").strip(),
+        }
+
+    additional = (tournament.rules or "").strip()
+    if additional == DEFAULT_MATCH_RULES.strip():
+        additional = ""
+
+    return {
+        "mandatory": DEFAULT_MATCH_RULES,
+        "additional": additional,
+    }
 
 
 def minimum_entries_for_schedule(tournament: Tournament) -> int:
@@ -761,7 +772,7 @@ def tournament_page(
             prize_places=len(prize_awards),
             matches=matches,
             accessible_match_ids=accessible_match_ids,
-            display_rules=tournament_display_rules(tournament),
+            rules_display=tournament_display_rules(tournament),
         ),
     )
 

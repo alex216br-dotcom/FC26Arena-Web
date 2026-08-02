@@ -306,3 +306,10 @@ Foi adicionado `flush()` antes da exclusão das inscrições para garantir a ord
 - Campeonatos antigos com o campo `rules` vazio também exibem as regras padrão.
 - O bloco é mostrado mesmo antes de gerar partidas.
 - A Arena Duelo Rápido permanece separada.
+
+
+## Regras obrigatórias em todos os campeonatos normais
+
+As regras padrão agora aparecem mesmo quando o campeonato já possui um regulamento
+específico salvo. O regulamento específico é exibido abaixo como regra adicional,
+sem substituir as regras obrigatórias.
