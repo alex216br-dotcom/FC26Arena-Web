@@ -807,3 +807,30 @@ button[disabled]{
   line-height:1.7;
   color:#e5eee7;
 }
+
+
+.match-rules-prominent{
+  margin:22px 0;
+  border:2px solid #55a96c;
+  background:linear-gradient(135deg,#0b1c11,#101b13);
+}
+.match-rules-list{
+  display:grid;
+  gap:10px;
+}
+.match-rule-item{
+  position:relative;
+  padding:11px 12px 11px 38px;
+  border:1px solid #294a34;
+  border-radius:9px;
+  background:#08120c;
+  color:#eef8f0;
+  font-weight:600;
+}
+.match-rule-item::before{
+  content:"✓";
+  position:absolute;
+  left:13px;
+  color:#6dff8c;
+  font-weight:900;
+}

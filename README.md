@@ -285,3 +285,24 @@ Nos campeonatos normais:
 - resultado confirmado pelos dois jogadores na Sala PVP.
 
 A Arena Duelo Rápido não foi alterada e mantém suas próprias regras.
+
+
+## Correção de exclusão de jogador com premiação
+
+A exclusão administrativa agora respeita a ordem das chaves estrangeiras:
+1. mensagens da conversa de premiação;
+2. conversa de premiação;
+3. pagamentos;
+4. inscrições;
+5. dados restantes do jogador;
+6. jogador.
+
+Foi adicionado `flush()` antes da exclusão das inscrições para garantir a ordem também no PostgreSQL.
+
+
+## Correção da exibição das regras
+
+- As regras agora aparecem no topo da página pública do campeonato.
+- Campeonatos antigos com o campo `rules` vazio também exibem as regras padrão.
+- O bloco é mostrado mesmo antes de gerar partidas.
+- A Arena Duelo Rápido permanece separada.

@@ -25,10 +25,32 @@
         {% endif %}
       </p>
 
-      <div class="tournament-specific-rules">
-        <h3>Regras específicas</h3>
-        <p>{{ tournament.rules or 'Este campeonato segue o regulamento geral da plataforma.' }}</p>
-      </div>
+      {% if not tournament.quick_duel %}
+      <section class="match-rules-box match-rules-prominent">
+        <div class="match-rules-head">
+          <span>📋</span>
+          <div>
+            <strong>Regras obrigatórias das partidas</strong>
+            <small>Todos os participantes devem seguir estas configurações</small>
+          </div>
+        </div>
+        <div class="match-rules-list">
+          {% for line in display_rules.split('\n') %}
+            {% if line.strip() %}
+              <div class="match-rule-item">{{ line }}</div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </section>
+      {% elif display_rules %}
+      <section class="match-rules-box">
+        <div class="match-rules-head">
+          <span>📋</span>
+          <div><strong>Regras do Duelo Rápido</strong></div>
+        </div>
+        <div class="match-rules-content">{{ display_rules }}</div>
+      </section>
+      {% endif %}
 
       <div class="tournament-rule-links">
         <a class="btn" href="/como-funciona">Como funciona</a>
@@ -215,21 +237,6 @@
       {% endfor %}
     </section>
   {% endif %}
-
-  
-{% if tournament.rules and not tournament.quick_duel %}
-<section class="match-rules-box">
-  <div class="match-rules-head">
-    <span>📋</span>
-    <div>
-      <strong>Regras das partidas</strong>
-      <small>Válidas para este campeonato</small>
-    </div>
-  </div>
-  <div class="match-rules-content">{{ tournament.rules }}</div>
-</section>
-{% endif %}
-
 {% if matches %}
     <section class="tournament-matches">
       <div class="matches-section-head">

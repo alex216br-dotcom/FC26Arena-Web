@@ -139,6 +139,12 @@ def normal_tournament_rules(rules: str | None) -> str:
     return clean or DEFAULT_MATCH_RULES
 
 
+def tournament_display_rules(tournament: Tournament) -> str:
+    if tournament.quick_duel:
+        return (tournament.rules or "").strip()
+    return normal_tournament_rules(tournament.rules)
+
+
 def minimum_entries_for_schedule(tournament: Tournament) -> int:
     if tournament.competition_format == "league":
         return 2
@@ -755,6 +761,7 @@ def tournament_page(
             prize_places=len(prize_awards),
             matches=matches,
             accessible_match_ids=accessible_match_ids,
+            display_rules=tournament_display_rules(tournament),
         ),
     )
 
@@ -1942,20 +1949,30 @@ def admin_delete_player(
         )
 
         if registration_ids:
-            winner_conversations = db.scalars(
-                select(PrizeConversation).where(
+            conversation_ids = list(db.scalars(
+                select(PrizeConversation.id).where(
                     PrizeConversation.registration_id.in_(registration_ids)
                 )
-            ).all()
-            for conversation in winner_conversations:
+            ).all())
+
+            if conversation_ids:
+                # Primeiro remove todas as mensagens vinculadas às premiações.
                 db.query(PrizeMessage).filter(
-                    PrizeMessage.conversation_id == conversation.id
+                    PrizeMessage.conversation_id.in_(conversation_ids)
                 ).delete(synchronize_session=False)
-                db.delete(conversation)
+
+                # Depois remove as próprias conversas em uma operação direta.
+                # Isso garante que o PostgreSQL execute o DELETE antes das inscrições.
+                db.query(PrizeConversation).filter(
+                    PrizeConversation.id.in_(conversation_ids)
+                ).delete(synchronize_session=False)
 
             db.query(Payment).filter(
                 Payment.registration_id.in_(registration_ids)
             ).delete(synchronize_session=False)
+
+            # Força a execução das exclusões dependentes antes de apagar inscrições.
+            db.flush()
 
             db.query(Registration).filter(
                 Registration.id.in_(registration_ids)
