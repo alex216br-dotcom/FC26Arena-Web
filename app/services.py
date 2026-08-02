@@ -6,8 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .models import (
     Achievement, AuditLog, Evidence, Match, MatchMessage, Notification,
-    Registration, Report, TeamMember, Tournament, TournamentPrize, User,
-    UserAchievement
+    PrizeConversation, PrizeMessage, Registration, Report, TeamMember,
+    Tournament, TournamentPrize, User, UserAchievement
 )
 
 def slugify(value: str) -> str:
@@ -44,6 +44,69 @@ def registration_users(db: Session, registration: Registration) -> list[User]:
         ).all()
         return [member.user for member in members]
     return []
+
+
+def ensure_champion_prize_conversation(
+    db: Session,
+    tournament: Tournament,
+    champion: Registration,
+) -> PrizeConversation:
+    """Cria uma única conversa privada de premiação para o campeão."""
+    conversation = db.scalar(
+        select(PrizeConversation).where(
+            PrizeConversation.tournament_id == tournament.id,
+            PrizeConversation.registration_id == champion.id,
+        )
+    )
+    if conversation:
+        return conversation
+
+    first_prize = db.scalar(
+        select(TournamentPrize)
+        .where(
+            TournamentPrize.tournament_id == tournament.id,
+            TournamentPrize.place == 1,
+        )
+    )
+    amount = first_prize.amount if first_prize else tournament.prize
+
+    conversation = PrizeConversation(
+        tournament_id=tournament.id,
+        registration_id=champion.id,
+        amount=amount or 0,
+        status="awaiting_data",
+    )
+    db.add(conversation)
+    db.flush()
+
+    db.add(PrizeMessage(
+        conversation_id=conversation.id,
+        user_id=None,
+        sender_type="admin",
+        message=(
+            "Parabéns pelo título! O pagamento da premiação será realizado "
+            "em até 24 horas após o envio e a conferência dos dados. "
+            "Envie sua chave Pix, nome do titular e CPF do titular pelo "
+            "formulário seguro desta conversa."
+        ),
+    ))
+
+    for user in registration_users(db, champion):
+        db.add(Notification(
+            user_id=user.id,
+            channel="site",
+            subject="🏆 Você é campeão!",
+            body=(
+                f"Parabéns pelo título em {tournament.name}! "
+                "Abra a conversa de premiação no seu painel para enviar "
+                "os dados de recebimento. O pagamento será feito em até 24 horas."
+            ),
+            status="sent",
+        ))
+
+    db.flush()
+    return conversation
+
 
 def award_achievement(db: Session, user: User, code: str):
     achievement = db.scalar(select(Achievement).where(Achievement.code == code))
@@ -345,6 +408,8 @@ def finish_league_if_ready(db: Session, tournament: Tournament):
         if champion.team:
             champion.team.titles += 1
 
+        ensure_champion_prize_conversation(db, tournament, champion)
+
         prize_rows = db.scalars(
             select(TournamentPrize)
             .where(TournamentPrize.tournament_id == tournament.id)
@@ -502,6 +567,7 @@ def advance_knockout(db: Session, tournament: Tournament, current_match: Match):
             award_achievement(db, user, "CHAMPION")
         if champion.team:
             champion.team.titles += 1
+        ensure_champion_prize_conversation(db, tournament, champion)
         db.commit()
         return
 

@@ -20,8 +20,9 @@ from .database import Base, engine, get_db
 from .integrations import notify_user, send_email
 from .models import (
     Achievement, AdminUser, AuditLog, Coupon, Evidence, Match, MatchMessage,
-    Notification, PasswordReset, Payment, Registration, Report, Season,
-    SupportTicket, Team, TeamMember, Tournament, TournamentPrize, User, UserAchievement,
+    Notification, PasswordReset, Payment, PrizeConversation, PrizeMessage,
+    Registration, Report, Season, SupportTicket, Team, TeamMember, Tournament,
+    TournamentPrize, User, UserAchievement,
 )
 from .security import hash_password, token_urlsafe, verify_password
 from .services import (
@@ -647,9 +648,27 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     ]
     achievements = db.scalars(select(UserAchievement).where(UserAchievement.user_id == user.id)).all()
     notifications = db.scalars(select(Notification).where(Notification.user_id == user.id).order_by(Notification.id.desc()).limit(5)).all()
+
+    prize_conversations = db.scalars(
+        select(PrizeConversation)
+        .options(
+            selectinload(PrizeConversation.tournament),
+            selectinload(PrizeConversation.registration).selectinload(Registration.user),
+            selectinload(PrizeConversation.registration).selectinload(Registration.team),
+        )
+        .order_by(PrizeConversation.id.desc())
+    ).all()
+    prize_conversations = [
+        conversation
+        for conversation in prize_conversations
+        if registration_contains_user(db, conversation.registration, user)
+    ]
+
     return templates.TemplateResponse("dashboard.html", ctx(
         request, user=user, registrations=registrations, matches=user_matches,
-        achievements=achievements, notifications=notifications, new=request.query_params.get("novo")
+        achievements=achievements, notifications=notifications,
+        prize_conversations=prize_conversations,
+        new=request.query_params.get("novo")
     ))
 
 @app.get("/campeonatos", response_class=HTMLResponse)
@@ -1057,6 +1076,123 @@ def notifications_page(request: Request, db: Session = Depends(get_db)):
     db.commit()
     return templates.TemplateResponse("notifications.html", ctx(request, notifications=notifications))
 
+
+@app.get("/premiacao/{conversation_id}", response_class=HTMLResponse)
+def prize_conversation_page(
+    conversation_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = require_user(request, db)
+    conversation = db.scalar(
+        select(PrizeConversation)
+        .options(
+            selectinload(PrizeConversation.tournament),
+            selectinload(PrizeConversation.registration).selectinload(Registration.user),
+            selectinload(PrizeConversation.registration).selectinload(Registration.team),
+        )
+        .where(PrizeConversation.id == conversation_id)
+    )
+    if not conversation or not registration_contains_user(
+        db, conversation.registration, user
+    ):
+        raise HTTPException(404)
+
+    messages = db.scalars(
+        select(PrizeMessage)
+        .options(selectinload(PrizeMessage.user))
+        .where(PrizeMessage.conversation_id == conversation.id)
+        .order_by(PrizeMessage.created_at, PrizeMessage.id)
+    ).all()
+
+    return templates.TemplateResponse(
+        "prize_conversation.html",
+        ctx(
+            request,
+            user=user,
+            conversation=conversation,
+            messages=messages,
+            entry_name=entry_name,
+            message=request.query_params.get("message"),
+        ),
+    )
+
+
+@app.post("/premiacao/{conversation_id}/dados")
+def prize_submit_data(
+    conversation_id: int,
+    request: Request,
+    pix_key: Annotated[str, Form()],
+    pix_holder_name: Annotated[str, Form()],
+    pix_holder_document: Annotated[str, Form()],
+    db: Session = Depends(get_db),
+):
+    user = require_user(request, db)
+    conversation = db.get(PrizeConversation, conversation_id)
+    if not conversation or not registration_contains_user(
+        db, conversation.registration, user
+    ):
+        raise HTTPException(404)
+
+    key = pix_key.strip()
+    holder = pix_holder_name.strip()
+    document = re.sub(r"\D", "", pix_holder_document)
+
+    if len(key) < 3 or len(holder) < 3 or len(document) != 11:
+        return RedirectResponse(
+            f"/premiacao/{conversation.id}?message="
+            + quote("Preencha corretamente a chave Pix, o titular e o CPF."),
+            303,
+        )
+
+    conversation.pix_key = key[:180]
+    conversation.pix_holder_name = holder[:180]
+    conversation.pix_holder_document = document
+    conversation.status = "data_received"
+    db.add(PrizeMessage(
+        conversation_id=conversation.id,
+        user_id=user.id,
+        sender_type="winner",
+        message=(
+            "Dados de recebimento enviados para conferência da administração."
+        ),
+    ))
+    db.commit()
+
+    return RedirectResponse(
+        f"/premiacao/{conversation.id}?message="
+        + quote("Dados enviados. O pagamento será realizado em até 24 horas."),
+        303,
+    )
+
+
+@app.post("/premiacao/{conversation_id}/mensagem")
+def prize_winner_message(
+    conversation_id: int,
+    request: Request,
+    message: Annotated[str, Form()],
+    db: Session = Depends(get_db),
+):
+    user = require_user(request, db)
+    conversation = db.get(PrizeConversation, conversation_id)
+    if not conversation or not registration_contains_user(
+        db, conversation.registration, user
+    ):
+        raise HTTPException(404)
+
+    clean = message.strip()
+    if clean:
+        db.add(PrizeMessage(
+            conversation_id=conversation.id,
+            user_id=user.id,
+            sender_type="winner",
+            message=clean[:1500],
+        ))
+        db.commit()
+
+    return RedirectResponse(f"/premiacao/{conversation.id}", 303)
+
+
 @app.get("/partida/{match_id}", response_class=HTMLResponse)
 def match_room(match_id: int, request: Request, db: Session = Depends(get_db)):
     user = require_user(request, db)
@@ -1205,6 +1341,15 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     tickets = db.scalars(select(SupportTicket).order_by(SupportTicket.id.desc()).limit(20)).all()
     coupons = db.scalars(select(Coupon).order_by(Coupon.id.desc())).all()
     audits = db.scalars(select(AuditLog).order_by(AuditLog.id.desc()).limit(20)).all()
+    prize_conversations = db.scalars(
+        select(PrizeConversation)
+        .options(
+            selectinload(PrizeConversation.tournament),
+            selectinload(PrizeConversation.registration).selectinload(Registration.user),
+            selectinload(PrizeConversation.registration).selectinload(Registration.team),
+        )
+        .order_by(PrizeConversation.id.desc())
+    ).all()
 
     tournament_rows = []
     for tournament in tournaments:
@@ -1238,10 +1383,143 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         tickets=tickets,
         coupons=coupons,
         audits=audits,
+        prize_conversations=prize_conversations,
         stats=stats,
         registration_label=registration_label,
         message=request.query_params.get("message"),
     ))
+
+
+
+@app.get("/admin/premiacao/{conversation_id}", response_class=HTMLResponse)
+def admin_prize_conversation(
+    conversation_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    conversation = db.scalar(
+        select(PrizeConversation)
+        .options(
+            selectinload(PrizeConversation.tournament),
+            selectinload(PrizeConversation.registration).selectinload(Registration.user),
+            selectinload(PrizeConversation.registration).selectinload(Registration.team),
+        )
+        .where(PrizeConversation.id == conversation_id)
+    )
+    if not conversation:
+        raise HTTPException(404)
+
+    messages = db.scalars(
+        select(PrizeMessage)
+        .options(selectinload(PrizeMessage.user))
+        .where(PrizeMessage.conversation_id == conversation.id)
+        .order_by(PrizeMessage.created_at, PrizeMessage.id)
+    ).all()
+
+    return templates.TemplateResponse(
+        "admin_prize_conversation.html",
+        ctx(
+            request,
+            conversation=conversation,
+            messages=messages,
+            entry_name=entry_name,
+            message=request.query_params.get("message"),
+        ),
+    )
+
+
+@app.post("/admin/premiacao/{conversation_id}/mensagem")
+def admin_prize_message(
+    conversation_id: int,
+    request: Request,
+    message: Annotated[str, Form()],
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    conversation = db.get(PrizeConversation, conversation_id)
+    if not conversation:
+        raise HTTPException(404)
+
+    clean = message.strip()
+    if clean:
+        db.add(PrizeMessage(
+            conversation_id=conversation.id,
+            user_id=None,
+            sender_type="admin",
+            message=clean[:1500],
+        ))
+        for recipient in registration_users(db, conversation.registration):
+            notify_user(
+                db,
+                recipient,
+                "Nova mensagem sobre sua premiação",
+                f"A administração respondeu sobre {conversation.tournament.name}.",
+            )
+        db.commit()
+
+    return RedirectResponse(f"/admin/premiacao/{conversation.id}", 303)
+
+
+@app.post("/admin/premiacao/{conversation_id}/status")
+def admin_prize_status(
+    conversation_id: int,
+    request: Request,
+    status: Annotated[str, Form()],
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    conversation = db.get(PrizeConversation, conversation_id)
+    if not conversation:
+        raise HTTPException(404)
+
+    allowed = {"awaiting_data", "data_received", "processing", "paid"}
+    if status not in allowed:
+        raise HTTPException(400, "Status de premiação inválido.")
+
+    conversation.status = status
+    if status == "paid":
+        conversation.paid_at = datetime.utcnow()
+        system_message = (
+            f"Pagamento de R$ {float(conversation.amount):.2f} marcado como "
+            "realizado pela administração."
+        )
+        subject = "✅ Premiação paga"
+        body = (
+            f"A premiação de {conversation.tournament.name} foi marcada como paga. "
+            "Confira sua conta Pix."
+        )
+    else:
+        conversation.paid_at = None
+        system_message = f"Status da premiação atualizado para: {status}."
+        subject = "Atualização da premiação"
+        body = (
+            f"O status da premiação de {conversation.tournament.name} "
+            f"foi atualizado para {status}."
+        )
+
+    db.add(PrizeMessage(
+        conversation_id=conversation.id,
+        user_id=None,
+        sender_type="admin",
+        message=system_message,
+    ))
+    for recipient in registration_users(db, conversation.registration):
+        notify_user(db, recipient, subject, body)
+    db.commit()
+    audit(
+        db,
+        "prize_status",
+        "prize_conversation",
+        conversation.id,
+        status,
+    )
+
+    return RedirectResponse(
+        f"/admin/premiacao/{conversation.id}?message="
+        + quote("Status da premiação atualizado."),
+        303,
+    )
 
 
 @app.get("/admin/equipes", response_class=HTMLResponse)
@@ -1384,6 +1662,17 @@ def admin_delete_team(
 
     try:
         if registration_ids:
+            team_conversations = db.scalars(
+                select(PrizeConversation).where(
+                    PrizeConversation.registration_id.in_(registration_ids)
+                )
+            ).all()
+            for conversation in team_conversations:
+                db.query(PrizeMessage).filter(
+                    PrizeMessage.conversation_id == conversation.id
+                ).delete(synchronize_session=False)
+                db.delete(conversation)
+
             db.query(Payment).filter(
                 Payment.registration_id.in_(registration_ids)
             ).delete(synchronize_session=False)
@@ -1611,6 +1900,17 @@ def admin_delete_player(
         )
 
         if registration_ids:
+            winner_conversations = db.scalars(
+                select(PrizeConversation).where(
+                    PrizeConversation.registration_id.in_(registration_ids)
+                )
+            ).all()
+            for conversation in winner_conversations:
+                db.query(PrizeMessage).filter(
+                    PrizeMessage.conversation_id == conversation.id
+                ).delete(synchronize_session=False)
+                db.delete(conversation)
+
             db.query(Payment).filter(
                 Payment.registration_id.in_(registration_ids)
             ).delete(synchronize_session=False)
@@ -1618,6 +1918,10 @@ def admin_delete_player(
             db.query(Registration).filter(
                 Registration.id.in_(registration_ids)
             ).delete(synchronize_session=False)
+
+        db.query(PrizeMessage).filter(
+            PrizeMessage.user_id == user.id
+        ).delete(synchronize_session=False)
 
         db.delete(user)
         db.commit()

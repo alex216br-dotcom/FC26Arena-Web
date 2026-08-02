@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Premiação — Administração{% endblock %}
+{% block content %}
+<section class="container section admin-prize-page">
+  <a href="/admin#premiacoes" class="btn">← Voltar ao painel</a>
+  {% if message %}<div class="success">{{ message }}</div>{% endif %}
+
+  <header class="admin-prize-header">
+    <div>
+      <span class="champion-label">PREMIAÇÃO DO CAMPEÃO</span>
+      <h1>{{ conversation.tournament.name }}</h1>
+      <p>{{ entry_name(conversation.registration) }} · R$ {{ '%.2f'|format(conversation.amount) }}</p>
+    </div>
+    <span class="status status-{{ conversation.status }}">{{ conversation.status }}</span>
+  </header>
+
+  <div class="admin-prize-grid">
+    <section class="panel">
+      <h2>Dados para pagamento</h2>
+      {% if conversation.pix_key %}
+        <dl class="prize-payment-data">
+          <dt>Chave Pix</dt><dd>{{ conversation.pix_key }}</dd>
+          <dt>Titular</dt><dd>{{ conversation.pix_holder_name }}</dd>
+          <dt>CPF</dt><dd>{{ conversation.pix_holder_document }}</dd>
+          <dt>Valor</dt><dd>R$ {{ '%.2f'|format(conversation.amount) }}</dd>
+        </dl>
+      {% else %}
+        <div class="admin-warning">O campeão ainda não enviou os dados.</div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>Atualizar pagamento</h2>
+      <form method="post" action="/admin/premiacao/{{ conversation.id }}/status" class="form-grid">
+        <select name="status">
+          <option value="awaiting_data" {% if conversation.status == 'awaiting_data' %}selected{% endif %}>Aguardando dados</option>
+          <option value="data_received" {% if conversation.status == 'data_received' %}selected{% endif %}>Dados recebidos</option>
+          <option value="processing" {% if conversation.status == 'processing' %}selected{% endif %}>Em processamento</option>
+          <option value="paid" {% if conversation.status == 'paid' %}selected{% endif %}>Pago</option>
+        </select>
+        <button class="btn btn-primary">Salvar status</button>
+      </form>
+      <p class="muted">Ao marcar como pago, o campeão receberá uma notificação.</p>
+    </section>
+  </div>
+
+  <section class="panel prize-chat">
+    <h2>Conversa privada</h2>
+    <div class="prize-chat-messages">
+      {% for item in messages %}
+        <article class="prize-message prize-message-{{ item.sender_type }}">
+          <header>
+            <strong>{{ 'Administração FC26 Arena' if item.sender_type == 'admin' else (item.user.name if item.user else 'Campeão') }}</strong>
+            <small>{{ item.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+          </header>
+          <p>{{ item.message }}</p>
+        </article>
+      {% endfor %}
+    </div>
+    <form method="post" action="/admin/premiacao/{{ conversation.id }}/mensagem" class="prize-chat-form">
+      <textarea name="message" maxlength="1500" placeholder="Responder ao campeão..." required></textarea>
+      <button class="btn btn-primary">Enviar resposta</button>
+    </form>
+  </section>
+</section>
+{% endblock %}

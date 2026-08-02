@@ -9,4 +9,23 @@
         <p class="muted">Abra a sala para conversar com o adversário, confirmar o ID EA e enviar o resultado.</p>
       </div>
     </div>
-    <div class="table-wrap"><table><tr><th>Campeonato</th><th>Confronto</th><th>Status</th><th>Sala PVP</th></tr>{% for m in matches %}<tr><td>{{ m.tournament.name }}</td><td>{{ m.home.team.name if m.home.team else m.home.user.name }} x {{ m.away.team.name if m.away.team else m.away.user.name }}</td><td>{{ m.status }}</td><td><a class="btn btn-primary" href="/partida/{{ m.id }}">Abrir</a></td></tr>{% else %}<tr><td colspan="4">Nenhuma partida.</td></tr>{% endfor %}</table></div><h2>Notificações</h2>{% for n in notifications %}<div class="panel"><strong>{{ n.subject }}</strong><p>{{ n.body }}</p></div>{% endfor %}</section>{% endblock %}
+    <div class="table-wrap"><table><tr><th>Campeonato</th><th>Confronto</th><th>Status</th><th>Sala PVP</th></tr>{% for m in matches %}<tr><td>{{ m.tournament.name }}</td><td>{{ m.home.team.name if m.home.team else m.home.user.name }} x {{ m.away.team.name if m.away.team else m.away.user.name }}</td><td>{{ m.status }}</td><td><a class="btn btn-primary" href="/partida/{{ m.id }}">Abrir</a></td></tr>{% else %}<tr><td colspan="4">Nenhuma partida.</td></tr>{% endfor %}</table></div>
+{% if prize_conversations %}
+<section class="champion-dashboard-section">
+  <h2>🏆 Minhas premiações</h2>
+  <div class="cards">
+    {% for prize in prize_conversations %}
+      <a class="champion-prize-card" href="/premiacao/{{ prize.id }}">
+        <div>
+          <span class="champion-label">VOCÊ É CAMPEÃO</span>
+          <h3>{{ prize.tournament.name }}</h3>
+          <p>Premiação: <strong>R$ {{ '%.2f'|format(prize.amount) }}</strong></p>
+          <p>Status: <span class="status status-{{ prize.status }}">{{ prize.status }}</span></p>
+        </div>
+        <strong>Abrir conversa →</strong>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+<h2>Notificações</h2>{% for n in notifications %}<div class="panel"><strong>{{ n.subject }}</strong><p>{{ n.body }}</p></div>{% endfor %}</section>{% endblock %}

@@ -723,3 +723,62 @@ button[disabled]{
 }
 .quick-duel-public-info strong{color:#ffdc72}
 .quick-duel-public-info span{color:#e6dcc0}
+
+
+/* Tela do campeão e conversa de premiação */
+.champion-dashboard-section{margin:28px 0}
+.champion-prize-card{
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+  padding:22px;border:1px solid #a98629;border-radius:14px;
+  background:linear-gradient(135deg,#241c08,#0b150e);text-decoration:none;color:inherit
+}
+.champion-prize-card:hover{border-color:#f0c85a}
+.champion-prize-card h3{margin:7px 0}
+.champion-label{color:#ffd96d;font-weight:800;letter-spacing:.08em;font-size:12px}
+.champion-hero{
+  padding:34px 22px;text-align:center;border:1px solid #9d7920;border-radius:17px;
+  background:radial-gradient(circle at 50% 0,#44320c,#161306 42%,#07100b 80%)
+}
+.champion-trophy{font-size:70px}
+.champion-hero>span{display:block;color:#ffe080;font-weight:900;letter-spacing:.12em}
+.champion-hero h1{margin:8px 0 10px;font-size:clamp(38px,7vw,68px)}
+.champion-prize-value{
+  display:inline-block;margin-top:12px;padding:12px 18px;border:1px solid #9a7b2a;
+  border-radius:999px;background:#171205
+}
+.champion-prize-value strong{color:#70ff90;font-size:20px}
+.payment-deadline{
+  margin:18px 0;padding:18px;border:1px solid #39724a;border-radius:12px;background:#0a1b10
+}
+.payment-deadline strong{color:#70ff91;font-size:18px}
+.payment-deadline p{margin:7px 0 0;color:#c8d5cb}
+.prize-room-grid,.admin-prize-grid{display:grid;grid-template-columns:1.35fr .65fr;gap:16px}
+.prize-status{padding:13px;border-radius:9px;font-weight:800;text-align:center}
+.prize-status-awaiting_data{background:#2a210b;color:#ffe080}
+.prize-status-data_received{background:#0b2330;color:#84d7ff}
+.prize-status-processing{background:#201640;color:#c8a8ff}
+.prize-status-paid{background:#0b2a15;color:#76ff94}
+.prize-chat{margin-top:18px}
+.prize-chat-messages{display:grid;gap:10px;margin:14px 0 18px}
+.prize-message{
+  max-width:78%;padding:13px 15px;border-radius:12px;border:1px solid #2a4935;background:#0b1710
+}
+.prize-message-admin{justify-self:start}
+.prize-message-winner{justify-self:end;background:#10261a;border-color:#39794d}
+.prize-message header{display:flex;justify-content:space-between;gap:15px;margin-bottom:7px}
+.prize-message header small{color:#92a398}
+.prize-message p{margin:0;white-space:pre-wrap}
+.prize-chat-form{display:grid;gap:10px}
+.prize-chat-form textarea{min-height:100px}
+.admin-prize-header{
+  display:flex;align-items:center;justify-content:space-between;gap:18px;margin:20px 0
+}
+.prize-payment-data{display:grid;grid-template-columns:140px 1fr;gap:9px 15px}
+.prize-payment-data dt{color:#94a59a}.prize-payment-data dd{margin:0;font-weight:700;word-break:break-word}
+
+@media(max-width:760px){
+  .prize-room-grid,.admin-prize-grid{grid-template-columns:1fr}
+  .prize-message{max-width:94%}
+  .admin-prize-header{align-items:flex-start;flex-direction:column}
+  .champion-prize-card{align-items:flex-start;flex-direction:column}
+}

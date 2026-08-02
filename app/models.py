@@ -186,6 +186,58 @@ class Report(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     reporter = relationship("User")
 
+
+class PrizeConversation(Base):
+    __tablename__ = "prize_conversations"
+    __table_args__ = (
+        UniqueConstraint(
+            "tournament_id",
+            "registration_id",
+            name="uq_prize_conversation_winner",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tournament_id: Mapped[int] = mapped_column(
+        ForeignKey("tournaments.id"), index=True
+    )
+    registration_id: Mapped[int] = mapped_column(
+        ForeignKey("registrations.id"), index=True
+    )
+    amount: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
+    status: Mapped[str] = mapped_column(String(30), default="awaiting_data")
+    pix_key: Mapped[str] = mapped_column(String(180), default="")
+    pix_holder_name: Mapped[str] = mapped_column(String(180), default="")
+    pix_holder_document: Mapped[str] = mapped_column(String(40), default="")
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    tournament = relationship("Tournament")
+    registration = relationship("Registration")
+
+
+class PrizeMessage(Base):
+    __tablename__ = "prize_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(
+        ForeignKey("prize_conversations.id"), index=True
+    )
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    sender_type: Mapped[str] = mapped_column(String(20), default="winner")
+    message: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+    conversation = relationship("PrizeConversation")
+
+
+
 class Achievement(Base):
     __tablename__ = "achievements"
     id: Mapped[int] = mapped_column(primary_key=True)

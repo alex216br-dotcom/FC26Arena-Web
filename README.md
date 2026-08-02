@@ -246,3 +246,16 @@ No formulário de criação e edição do campeonato:
 - fechamento e geração automática da final quando os 2 pagamentos forem aprovados;
 - notificação e Sala PVP liberadas automaticamente;
 - respeito à restrição de nova e antiga geração.
+
+
+## Tela do campeão e premiação em até 24 horas
+
+- Funciona em liga, grupos + mata-mata e Duelo Rápido.
+- Ao confirmar o campeão, o sistema cria uma conversa privada de premiação.
+- O campeão recebe notificação e um card no painel.
+- A tela informa pagamento em até 24 horas após o envio e conferência dos dados.
+- O campeão envia chave Pix, nome do titular e CPF em formulário privado.
+- Campeão e administração podem trocar mensagens.
+- O administrador pode marcar: aguardando dados, dados recebidos, processando ou pago.
+- Ao marcar como pago, o campeão recebe uma notificação.
+- Todas as mensagens e alterações ficam vinculadas à premiação.

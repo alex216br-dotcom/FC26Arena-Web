@@ -198,6 +198,37 @@
       </details>
     </section>
 
+
+    <section id="premiacoes" class="admin-card">
+      <div class="admin-section-head">
+        <div>
+          <h2>🏆 Premiações dos campeões</h2>
+          <p>Converse com os vencedores, confira os dados Pix e registre o pagamento.</p>
+        </div>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr><th>Campeonato</th><th>Campeão</th><th>Valor</th><th>Status</th><th>Prazo</th><th>Ação</th></tr>
+          </thead>
+          <tbody>
+            {% for prize in prize_conversations %}
+              <tr>
+                <td><strong>{{ prize.tournament.name }}</strong></td>
+                <td>{{ registration_label(prize.registration) }}</td>
+                <td>R$ {{ '%.2f'|format(prize.amount) }}</td>
+                <td><span class="status status-{{ prize.status }}">{{ prize.status }}</span></td>
+                <td>Até 24h após os dados</td>
+                <td><a class="btn btn-small btn-primary" href="/admin/premiacao/{{ prize.id }}">Abrir conversa</a></td>
+              </tr>
+            {% else %}
+              <tr><td colspan="6">Nenhuma premiação aguardando atendimento.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <div class="admin-two-columns">
       <section id="pagamentos" class="admin-card">
         <div class="admin-section-head">

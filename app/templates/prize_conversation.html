@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Premiação do campeão — FC26 Arena{% endblock %}
+{% block content %}
+<section class="container section prize-room-page">
+  {% if message %}<div class="success">{{ message }}</div>{% endif %}
+
+  <header class="champion-hero">
+    <div class="champion-trophy">🏆</div>
+    <span>CAMPEÃO FC26 ARENA</span>
+    <h1>Parabéns, {{ user.name }}!</h1>
+    <p>Você conquistou o título de <strong>{{ conversation.tournament.name }}</strong>.</p>
+    <div class="champion-prize-value">
+      Premiação: <strong>R$ {{ '%.2f'|format(conversation.amount) }}</strong>
+    </div>
+  </header>
+
+  <div class="payment-deadline">
+    <strong>⏱️ Pagamento em até 24 horas</strong>
+    <p>
+      O prazo começa após o envio correto dos dados e a conferência da administração.
+      Acompanhe todas as atualizações nesta conversa privada.
+    </p>
+  </div>
+
+  <div class="prize-room-grid">
+    <section class="panel">
+      <h2>Dados para receber via Pix</h2>
+      {% if conversation.status == 'paid' %}
+        <div class="success">✅ Esta premiação foi marcada como paga.</div>
+      {% endif %}
+      <form method="post" action="/premiacao/{{ conversation.id }}/dados" class="form-grid">
+        <label>
+          Chave Pix
+          <input name="pix_key" value="{{ conversation.pix_key }}" required autocomplete="off">
+        </label>
+        <label>
+          Nome completo do titular
+          <input name="pix_holder_name" value="{{ conversation.pix_holder_name }}" required autocomplete="off">
+        </label>
+        <label>
+          CPF do titular
+          <input name="pix_holder_document"
+                 value="{{ conversation.pix_holder_document }}"
+                 inputmode="numeric"
+                 maxlength="14"
+                 required autocomplete="off">
+        </label>
+        <small>
+          Os dados são exibidos somente para você e para a administração.
+          Confira com atenção antes de enviar.
+        </small>
+        <button class="btn btn-primary" {% if conversation.status == 'paid' %}disabled{% endif %}>
+          Enviar dados para pagamento
+        </button>
+      </form>
+    </section>
+
+    <section class="panel prize-status-panel">
+      <h2>Status</h2>
+      <div class="prize-status prize-status-{{ conversation.status }}">
+        {% if conversation.status == 'awaiting_data' %}
+          Aguardando seus dados
+        {% elif conversation.status == 'data_received' %}
+          Dados recebidos
+        {% elif conversation.status == 'processing' %}
+          Pagamento em processamento
+        {% elif conversation.status == 'paid' %}
+          Premiação paga
+        {% else %}
+          {{ conversation.status }}
+        {% endif %}
+      </div>
+      {% if conversation.paid_at %}
+        <p>Marcado como pago em {{ conversation.paid_at.strftime('%d/%m/%Y às %H:%M') }}.</p>
+      {% endif %}
+      <p class="muted">
+        Esta sala é exclusiva para tratar do pagamento da premiação com a administração.
+      </p>
+    </section>
+  </div>
+
+  <section class="panel prize-chat">
+    <h2>Conversa com a administração</h2>
+    <div class="prize-chat-messages">
+      {% for item in messages %}
+        <article class="prize-message prize-message-{{ item.sender_type }}">
+          <header>
+            <strong>{{ 'Administração FC26 Arena' if item.sender_type == 'admin' else (item.user.name if item.user else 'Campeão') }}</strong>
+            <small>{{ item.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+          </header>
+          <p>{{ item.message }}</p>
+        </article>
+      {% else %}
+        <p class="muted">Nenhuma mensagem.</p>
+      {% endfor %}
+    </div>
+    <form method="post" action="/premiacao/{{ conversation.id }}/mensagem" class="prize-chat-form">
+      <textarea name="message" maxlength="1500" placeholder="Escreva uma mensagem para a administração..." required></textarea>
+      <button class="btn btn-primary">Enviar mensagem</button>
+    </form>
+  </section>
+</section>
+{% endblock %}
