@@ -618,6 +618,17 @@ def tournament_page(
         .order_by(Match.round_order, Match.id)
     ).all()
 
+    accessible_match_ids: set[int] = set()
+    if user:
+        accessible_match_ids = {
+            match.id
+            for match in matches
+            if (
+                registration_contains_user(db, match.home, user)
+                or registration_contains_user(db, match.away, user)
+            )
+        }
+
     return templates.TemplateResponse(
         "tournament.html",
         ctx(
@@ -631,6 +642,7 @@ def tournament_page(
             prize_awards=prize_awards,
             prize_places=len(prize_awards),
             matches=matches,
+            accessible_match_ids=accessible_match_ids,
         ),
     )
 @app.post("/campeonato/{slug}/inscrever")

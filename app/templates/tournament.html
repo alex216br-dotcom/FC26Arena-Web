@@ -193,10 +193,42 @@
 
   {% if matches %}
     <section class="tournament-matches">
-      <h2>{{ 'Rodadas e partidas' if tournament.competition_format == 'league' else 'Partidas' }}</h2>
+      <div class="matches-section-head">
+        <div>
+          <h2>{{ 'Rodadas e partidas' if tournament.competition_format == 'league' else 'Partidas' }}</h2>
+          <p class="muted">
+            {{ matches|length }} partida(s) gerada(s)
+            {% if tournament.competition_format == 'league' %}
+              · {{ tournament.league_turns }} turno(s)
+            {% endif %}
+          </p>
+        </div>
+        {% if user %}
+          <a class="btn" href="/painel">Ver minhas partidas</a>
+        {% endif %}
+      </div>
+
+      {% if tournament.competition_format == 'league' and registrations|length == 2 %}
+        <div class="league-generation-note">
+          <strong>ℹ️ Tabela correta</strong>
+          <p>
+            Com 2 participantes e {{ tournament.league_turns }} turno(s),
+            são geradas {{ 2 if tournament.league_turns == 2 else 1 }} partida(s).
+          </p>
+        </div>
+      {% endif %}
+
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Rodada/Fase</th><th>Confronto</th><th>Placar</th><th>Status</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Rodada/Fase</th>
+              <th>Confronto</th>
+              <th>Placar</th>
+              <th>Status</th>
+              <th>Sala PVP</th>
+            </tr>
+          </thead>
           <tbody>
           {% for m in matches %}
             <tr>
@@ -208,6 +240,17 @@
               </td>
               <td>{{ m.home_score if m.home_score is not none else '-' }} x {{ m.away_score if m.away_score is not none else '-' }}</td>
               <td>{{ m.status }}</td>
+              <td>
+                {% if m.id in accessible_match_ids %}
+                  <a class="btn btn-small btn-primary" href="/partida/{{ m.id }}">
+                    Abrir Sala PVP
+                  </a>
+                {% elif user %}
+                  <span class="muted">Somente adversários</span>
+                {% else %}
+                  <a class="btn btn-small" href="/login">Entrar</a>
+                {% endif %}
+              </td>
             </tr>
           {% endfor %}
           </tbody>

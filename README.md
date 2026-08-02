@@ -201,3 +201,13 @@ Ao excluir uma equipe sem partidas vinculadas, o sistema remove:
 
 Se houver partidas, o administrador deve primeiro limpar a tabela ou o sorteio
 do campeonato. Essa proteção evita apagar o histórico de outros jogadores.
+
+
+## Partidas da liga e Sala PVP visíveis
+
+- A página do campeonato informa quantas partidas foram geradas.
+- Com 2 jogadores e 1 turno, o resultado correto é 1 partida.
+- Com 2 jogadores e 2 turnos, são geradas 2 partidas, uma de ida e outra de volta.
+- Jogadores envolvidos no confronto veem o botão `Abrir Sala PVP`.
+- Visitantes veem o botão para entrar na conta.
+- Jogadores também encontram as Salas PVP em `Meu painel`.

@@ -582,3 +582,43 @@ body.menu-open{overflow:hidden}
     width:100%;
   }
 }
+
+
+/* Liga: quantidade de partidas e acesso visível à Sala PVP */
+.matches-section-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:14px;
+}
+.matches-section-head h2{margin:0}
+.matches-section-head p{margin:6px 0 0}
+.league-generation-note{
+  margin:0 0 15px;
+  padding:13px 15px;
+  border:1px solid #2b653a;
+  border-radius:9px;
+  background:#091b10;
+}
+.league-generation-note strong{
+  display:block;
+  color:#72ff8d;
+  margin-bottom:5px;
+}
+.league-generation-note p{
+  margin:0;
+  color:#c4d0c8;
+}
+.dashboard-match-head h2{margin-bottom:4px}
+.dashboard-match-head p{margin-top:0}
+
+@media(max-width:700px){
+  .matches-section-head{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .matches-section-head .btn{
+    width:100%;
+  }
+}

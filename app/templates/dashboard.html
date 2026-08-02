@@ -3,4 +3,10 @@
       <span class="status status-{{ r.status }}">{{ r.status }}</span>
       · Pagamento:
       <span class="status status-{{ r.payment_status }}">{{ r.payment_status }}</span>
-    </p></div></a>{% else %}<div class="panel">Você ainda não está inscrito.</div>{% endfor %}</div><h2>Minhas partidas</h2><div class="table-wrap"><table><tr><th>Campeonato</th><th>Confronto</th><th>Status</th><th>Sala PVP</th></tr>{% for m in matches %}<tr><td>{{ m.tournament.name }}</td><td>{{ m.home.team.name if m.home.team else m.home.user.name }} x {{ m.away.team.name if m.away.team else m.away.user.name }}</td><td>{{ m.status }}</td><td><a class="btn btn-primary" href="/partida/{{ m.id }}">Abrir</a></td></tr>{% else %}<tr><td colspan="4">Nenhuma partida.</td></tr>{% endfor %}</table></div><h2>Notificações</h2>{% for n in notifications %}<div class="panel"><strong>{{ n.subject }}</strong><p>{{ n.body }}</p></div>{% endfor %}</section>{% endblock %}
+    </p></div></a>{% else %}<div class="panel">Você ainda não está inscrito.</div>{% endfor %}</div><div class="dashboard-match-head">
+      <div>
+        <h2>Minhas partidas e Salas PVP</h2>
+        <p class="muted">Abra a sala para conversar com o adversário, confirmar o ID EA e enviar o resultado.</p>
+      </div>
+    </div>
+    <div class="table-wrap"><table><tr><th>Campeonato</th><th>Confronto</th><th>Status</th><th>Sala PVP</th></tr>{% for m in matches %}<tr><td>{{ m.tournament.name }}</td><td>{{ m.home.team.name if m.home.team else m.home.user.name }} x {{ m.away.team.name if m.away.team else m.away.user.name }}</td><td>{{ m.status }}</td><td><a class="btn btn-primary" href="/partida/{{ m.id }}">Abrir</a></td></tr>{% else %}<tr><td colspan="4">Nenhuma partida.</td></tr>{% endfor %}</table></div><h2>Notificações</h2>{% for n in notifications %}<div class="panel"><strong>{{ n.subject }}</strong><p>{{ n.body }}</p></div>{% endfor %}</section>{% endblock %}
