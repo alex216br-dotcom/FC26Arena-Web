@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Equipes — Administração{% endblock %}
+{% block content %}
+<section class="admin-shell">
+  <aside class="admin-sidebar">
+    <div class="admin-brand">
+      <span class="logo-mark">A</span>
+      <div><strong>FC26 Arena</strong><small>Equipes</small></div>
+    </div>
+    <nav>
+      <a href="/admin">← Visão geral</a>
+      <a href="/admin/jogadores">👤 Jogadores</a>
+      <a class="active" href="/admin/equipes">👥 Equipes</a>
+      <a href="/admin#campeonatos">🏆 Campeonatos</a>
+      <a href="/admin/sair">🚪 Sair</a>
+    </nav>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-header">
+      <div>
+        <span class="eyebrow">BASE DE EQUIPES</span>
+        <h1>Gerenciar equipes</h1>
+        <p class="muted">Ative, desative ou exclua equipes de 2x2 e Pro Clubs.</p>
+      </div>
+      <a class="btn" href="/times" target="_blank">Ver página pública ↗</a>
+    </div>
+
+    {% if message %}
+      <div class="success admin-message">{{ message }}</div>
+    {% endif %}
+
+    <section class="admin-card">
+      <form class="admin-filter" method="get">
+        <input name="q" value="{{ q }}"
+               placeholder="Buscar por equipe, capitão ou código de convite">
+        <select name="mode">
+          <option value="todas" {% if mode == 'todas' %}selected{% endif %}>Todas as modalidades</option>
+          <option value="2x2" {% if mode == '2x2' %}selected{% endif %}>2x2</option>
+          <option value="Pro Clubs" {% if mode == 'Pro Clubs' %}selected{% endif %}>Pro Clubs</option>
+        </select>
+        <button class="btn btn-primary">Buscar</button>
+      </form>
+    </section>
+
+    <section class="admin-card">
+      <div class="admin-delete-note">
+        <strong>Proteção do campeonato</strong>
+        <p>
+          Uma equipe que já possui partidas não pode ser apagada diretamente.
+          Primeiro limpe a tabela ou o sorteio do campeonato para preservar o histórico.
+        </p>
+      </div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table team-admin-table">
+          <thead>
+            <tr>
+              <th>Equipe</th>
+              <th>Capitão</th>
+              <th>Modalidade</th>
+              <th>Membros</th>
+              <th>Inscrições</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for team in teams %}
+            <tr>
+              <td>
+                <strong>{{ team.name }}</strong>
+                <small>#{{ team.id }} · Código: {{ team.invite_code }}</small>
+              </td>
+              <td>
+                {% if team.captain %}
+                  {{ team.captain.name }}
+                  <small>{{ team.captain.ea_id }}</small>
+                {% else %}
+                  Capitão indisponível
+                {% endif %}
+              </td>
+              <td><span class="admin-chip">{{ team.mode }}</span></td>
+              <td>{{ member_totals[team.id] }}</td>
+              <td>{{ registration_totals[team.id] }}</td>
+              <td>
+                <span class="status {{ 'status-approved' if team.active else 'status-cancelled' }}">
+                  {{ 'Ativa' if team.active else 'Desativada' }}
+                </span>
+              </td>
+              <td>
+                <div class="admin-row-actions">
+                  <form method="post" action="/admin/equipe/{{ team.id }}/status">
+                    {% if team.active %}
+                      <button class="btn btn-small" name="action" value="deactivate">
+                        Desativar
+                      </button>
+                    {% else %}
+                      <button class="btn btn-small btn-primary" name="action" value="activate">
+                        Ativar
+                      </button>
+                    {% endif %}
+                  </form>
+
+                  <form method="post" action="/admin/equipe/{{ team.id }}/excluir"
+                        onsubmit="return confirm('Excluir definitivamente a equipe {{ team.name|e }}? Membros, inscrições sem partidas e pagamentos vinculados serão apagados. Esta ação não pode ser desfeita.')">
+                    <button class="btn btn-small btn-danger" type="submit">
+                      Excluir equipe
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7">Nenhuma equipe encontrada.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</section>
+{% endblock %}

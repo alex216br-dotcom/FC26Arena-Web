@@ -532,3 +532,53 @@ body.menu-open{overflow:hidden}
   .prize-distribution-head{align-items:flex-start;flex-direction:column}
   .prize-distribution-head>strong{align-self:flex-start}
 }
+
+
+/* V6.1 — exclusão administrativa de jogadores e equipes */
+.admin-row-actions{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.admin-row-actions form{margin:0}
+.admin-delete-note{
+  margin-bottom:16px;
+  padding:14px 16px;
+  border:1px solid #70432e;
+  border-radius:10px;
+  background:linear-gradient(135deg,#211309,#0c0d09);
+}
+.admin-delete-note strong{
+  display:block;
+  margin-bottom:5px;
+  color:#ffc07b;
+}
+.admin-delete-note p{
+  margin:0;
+  color:#d5c4b4;
+  line-height:1.45;
+}
+.team-admin-table td small{
+  display:block;
+  margin-top:4px;
+  color:var(--muted);
+}
+.btn-ghost-danger{
+  border-color:#6d3333!important;
+  color:#ffaaa8!important;
+  background:transparent!important;
+}
+.btn-ghost-danger:hover{
+  background:#2b1111!important;
+}
+
+@media(max-width:760px){
+  .admin-row-actions{
+    display:grid;
+    min-width:155px;
+  }
+  .admin-row-actions .btn{
+    width:100%;
+  }
+}

@@ -4,10 +4,10 @@
 <section class="admin-shell">
   <aside class="admin-sidebar">
     <div class="admin-brand"><span class="logo-mark">A</span><div><strong>FC26 Arena</strong><small>Jogadores</small></div></div>
-    <nav><a href="/admin">← Visão geral</a><a class="active" href="/admin/jogadores">👥 Jogadores</a><a href="/admin#campeonatos">🏆 Campeonatos</a><a href="/admin/sair">🚪 Sair</a></nav>
+    <nav><a href="/admin">← Visão geral</a><a class="active" href="/admin/jogadores">👤 Jogadores</a><a href="/admin/equipes">👥 Equipes</a><a href="/admin#campeonatos">🏆 Campeonatos</a><a href="/admin/sair">🚪 Sair</a></nav>
   </aside>
   <main class="admin-main">
-    <div class="admin-header"><div><span class="eyebrow">BASE DE JOGADORES</span><h1>Gerenciar jogadores</h1><p class="muted">Edite perfil, plataforma, geração e acesso.</p></div></div>
+    <div class="admin-header"><div><span class="eyebrow">BASE DE JOGADORES</span><h1>Gerenciar jogadores</h1><p class="muted">Edite, bloqueie ou exclua contas de jogadores.</p></div></div>
     {% if message %}<div class="success admin-message">{{ message }}</div>{% endif %}
     <section class="admin-card">
       <form class="admin-filter" method="get">
@@ -30,7 +30,21 @@
               <td>{{ user.platform }}<small>{{ 'Nova geração' if user.generation == 'nova' else 'Antiga geração' }}</small></td>
               <td>{{ registration_totals[user.id] }}</td>
               <td><span class="status {{ 'status-approved' if user.active else 'status-cancelled' }}">{{ 'Ativo' if user.active else 'Bloqueado' }}</span></td>
-              <td><button class="btn btn-small" type="button" onclick="document.getElementById('edit-user-{{ user.id }}').showModal()">Editar</button></td>
+              <td>
+                <div class="admin-row-actions">
+                  <button class="btn btn-small" type="button"
+                          onclick="document.getElementById('edit-user-{{ user.id }}').showModal()">
+                    Editar
+                  </button>
+
+                  <form method="post" action="/admin/jogador/{{ user.id }}/excluir"
+                        onsubmit="return confirm('Excluir definitivamente o jogador {{ user.name|e }}? A conta, inscrições sem partidas, pagamentos e dados vinculados serão apagados. Esta ação não pode ser desfeita.')">
+                    <button class="btn btn-small btn-danger" type="submit">
+                      Excluir jogador
+                    </button>
+                  </form>
+                </div>
+              </td>
             </tr>
             <dialog id="edit-user-{{ user.id }}" class="admin-dialog">
               <form method="post" action="/admin/jogador/{{ user.id }}/editar">

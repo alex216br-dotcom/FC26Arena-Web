@@ -1026,6 +1026,183 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         message=request.query_params.get("message"),
     ))
 
+
+@app.get("/admin/equipes", response_class=HTMLResponse)
+def admin_teams(
+    request: Request,
+    q: str = "",
+    mode: str = "todas",
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+
+    query = select(Team).options(
+        selectinload(Team.captain)
+    )
+
+    if mode in {"2x2", "Pro Clubs"}:
+        query = query.where(Team.mode == mode)
+
+    teams = db.scalars(query.order_by(Team.id.desc())).all()
+    term = q.strip().lower()
+
+    if term:
+        teams = [
+            team for team in teams
+            if term in team.name.lower()
+            or term in team.invite_code.lower()
+            or (
+                team.captain
+                and term in team.captain.name.lower()
+            )
+        ]
+
+    member_totals = {
+        team.id: db.scalar(
+            select(func.count())
+            .select_from(TeamMember)
+            .where(TeamMember.team_id == team.id)
+        )
+        for team in teams
+    }
+
+    registration_totals = {
+        team.id: db.scalar(
+            select(func.count())
+            .select_from(Registration)
+            .where(Registration.team_id == team.id)
+        )
+        for team in teams
+    }
+
+    return templates.TemplateResponse(
+        "admin_teams.html",
+        ctx(
+            request,
+            teams=teams,
+            member_totals=member_totals,
+            registration_totals=registration_totals,
+            q=q,
+            mode=mode,
+            message=request.query_params.get("message"),
+        ),
+    )
+
+
+@app.post("/admin/equipe/{team_id}/status")
+def admin_team_status(
+    team_id: int,
+    request: Request,
+    action: Annotated[str, Form()],
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    team = db.get(Team, team_id)
+
+    if not team:
+        return admin_redirect(
+            "Equipe não encontrada.",
+            "/admin/equipes",
+        )
+
+    if action not in {"activate", "deactivate"}:
+        return admin_redirect(
+            "Ação inválida.",
+            "/admin/equipes",
+        )
+
+    team.active = action == "activate"
+    db.commit()
+    audit(db, "status", "team", team.id, action)
+
+    return admin_redirect(
+        "Status da equipe atualizado.",
+        "/admin/equipes",
+    )
+
+
+@app.post("/admin/equipe/{team_id}/excluir")
+def admin_delete_team(
+    team_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+
+    team = db.scalar(
+        select(Team)
+        .options(selectinload(Team.captain))
+        .where(Team.id == team_id)
+    )
+    if not team:
+        return admin_redirect(
+            "Equipe não encontrada.",
+            "/admin/equipes",
+        )
+
+    registration_ids = list(db.scalars(
+        select(Registration.id).where(
+            Registration.team_id == team.id
+        )
+    ).all())
+
+    if registration_ids:
+        linked_match = db.scalar(
+            select(Match.id).where(or_(
+                Match.home_registration_id.in_(registration_ids),
+                Match.away_registration_id.in_(registration_ids),
+                Match.winner_registration_id.in_(registration_ids),
+            ))
+        )
+        if linked_match:
+            return admin_redirect(
+                (
+                    f"A equipe {team.name} possui partida vinculada. "
+                    "Limpe a tabela/sorteio do campeonato antes de excluir."
+                ),
+                "/admin/equipes",
+            )
+
+    label = team.name
+
+    try:
+        if registration_ids:
+            db.query(Payment).filter(
+                Payment.registration_id.in_(registration_ids)
+            ).delete(synchronize_session=False)
+
+            db.query(Registration).filter(
+                Registration.id.in_(registration_ids)
+            ).delete(synchronize_session=False)
+
+        db.query(TeamMember).filter(
+            TeamMember.team_id == team.id
+        ).delete(synchronize_session=False)
+
+        db.delete(team)
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+        return admin_redirect(
+            f"Não foi possível excluir a equipe: {exc}",
+            "/admin/equipes",
+        )
+
+    audit(
+        db,
+        "delete",
+        "team",
+        team_id,
+        f"Equipe excluída: {label}",
+    )
+
+    return admin_redirect(
+        f"Equipe {label} excluída com sucesso.",
+        "/admin/equipes",
+    )
+
+
 @app.get("/admin/jogadores", response_class=HTMLResponse)
 def admin_players(
     request: Request,
@@ -1112,6 +1289,152 @@ def admin_player_status(
     audit(db, "status", "user", user.id, action)
     return admin_redirect("Status do jogador atualizado.", "/admin/jogadores")
 
+
+
+@app.post("/admin/jogador/{user_id}/excluir")
+def admin_delete_player(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+
+    user = db.get(User, user_id)
+    if not user:
+        return admin_redirect(
+            "Jogador não encontrado.",
+            "/admin/jogadores",
+        )
+
+    captained_teams = db.scalars(
+        select(Team).where(Team.captain_id == user.id)
+    ).all()
+
+    if captained_teams:
+        names = ", ".join(team.name for team in captained_teams)
+        return admin_redirect(
+            (
+                f"Este jogador é capitão da(s) equipe(s): {names}. "
+                "Exclua ou transfira essas equipes antes de apagar o jogador."
+            ),
+            "/admin/jogadores",
+        )
+
+    registration_ids = list(db.scalars(
+        select(Registration.id).where(
+            Registration.user_id == user.id
+        )
+    ).all())
+
+    if registration_ids:
+        linked_match = db.scalar(
+            select(Match.id).where(or_(
+                Match.home_registration_id.in_(registration_ids),
+                Match.away_registration_id.in_(registration_ids),
+                Match.winner_registration_id.in_(registration_ids),
+            ))
+        )
+        if linked_match:
+            return admin_redirect(
+                (
+                    f"O jogador {user.name} possui partida vinculada. "
+                    "Limpe a tabela/sorteio do campeonato antes de excluir."
+                ),
+                "/admin/jogadores",
+            )
+
+    evidence_files = db.scalars(
+        select(Evidence.file_path).where(
+            Evidence.uploaded_by == user.id
+        )
+    ).all()
+
+    label = user.name
+
+    try:
+        # Remove dados diretamente ligados à conta.
+        db.query(MatchMessage).filter(
+            MatchMessage.user_id == user.id
+        ).delete(synchronize_session=False)
+
+        db.query(Evidence).filter(
+            Evidence.uploaded_by == user.id
+        ).delete(synchronize_session=False)
+
+        db.query(Report).filter(
+            Report.reporter_id == user.id
+        ).delete(synchronize_session=False)
+
+        db.query(Notification).filter(
+            Notification.user_id == user.id
+        ).delete(synchronize_session=False)
+
+        db.query(PasswordReset).filter(
+            PasswordReset.user_id == user.id
+        ).delete(synchronize_session=False)
+
+        db.query(SupportTicket).filter(
+            SupportTicket.user_id == user.id
+        ).delete(synchronize_session=False)
+
+        db.query(UserAchievement).filter(
+            UserAchievement.user_id == user.id
+        ).delete(synchronize_session=False)
+
+        db.query(TeamMember).filter(
+            TeamMember.user_id == user.id
+        ).delete(synchronize_session=False)
+
+        # Mantém partidas de terceiros, apenas remove a referência opcional.
+        db.query(Match).filter(
+            Match.result_submitted_by_user_id == user.id
+        ).update(
+            {Match.result_submitted_by_user_id: None},
+            synchronize_session=False,
+        )
+
+        if registration_ids:
+            db.query(Payment).filter(
+                Payment.registration_id.in_(registration_ids)
+            ).delete(synchronize_session=False)
+
+            db.query(Registration).filter(
+                Registration.id.in_(registration_ids)
+            ).delete(synchronize_session=False)
+
+        db.delete(user)
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+        return admin_redirect(
+            f"Não foi possível excluir o jogador: {exc}",
+            "/admin/jogadores",
+        )
+
+    # Apaga arquivos físicos somente depois da exclusão no banco.
+    for stored_path in evidence_files:
+        file_path = Path(stored_path)
+        if not file_path.is_absolute():
+            file_path = UPLOAD_DIR / file_path
+        try:
+            if file_path.exists() and file_path.is_file():
+                file_path.unlink()
+        except OSError:
+            pass
+
+    audit(
+        db,
+        "delete",
+        "user",
+        user_id,
+        f"Jogador excluído: {label}",
+    )
+
+    return admin_redirect(
+        f"Jogador {label} excluído com sucesso.",
+        "/admin/jogadores",
+    )
 
 @app.get("/admin/selecionar-campeonato")
 def admin_select_tournament(

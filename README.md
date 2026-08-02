@@ -165,3 +165,39 @@ Nos pontos corridos:
 
 Em grupos + mata-mata, a distribuição também é exibida, mas posições além das
 finais podem precisar de definição administrativa conforme o regulamento.
+
+
+## Exclusão administrativa de jogadores e equipes
+
+### Jogadores
+No painel `/admin/jogadores`, o administrador pode editar ou excluir uma conta.
+
+Ao excluir um jogador sem partidas vinculadas, o sistema remove:
+- conta;
+- inscrições;
+- pagamentos;
+- notificações;
+- redefinições de senha;
+- conquistas;
+- mensagens, provas e denúncias criadas pelo jogador;
+- participações em equipes.
+
+A exclusão é bloqueada quando:
+- o jogador é capitão de uma equipe;
+- existe uma partida vinculada a uma inscrição dele.
+
+### Equipes
+A nova página `/admin/equipes` permite:
+- buscar equipes;
+- filtrar 2x2 e Pro Clubs;
+- ativar ou desativar;
+- excluir a equipe.
+
+Ao excluir uma equipe sem partidas vinculadas, o sistema remove:
+- membros;
+- inscrições;
+- pagamentos vinculados às inscrições;
+- a própria equipe.
+
+Se houver partidas, o administrador deve primeiro limpar a tabela ou o sorteio
+do campeonato. Essa proteção evita apagar o histórico de outros jogadores.
