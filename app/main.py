@@ -1085,25 +1085,80 @@ def admin_remove_registration(
     db: Session = Depends(get_db),
 ):
     require_admin(request)
-    registration = db.get(Registration, registration_id)
-    if not registration or registration.tournament_id != tournament_id:
-        raise HTTPException(404)
-    linked_match = db.scalar(select(Match).where(or_(
-        Match.home_registration_id == registration.id,
-        Match.away_registration_id == registration.id,
-    )))
-    if linked_match:
+
+    registration = db.scalar(
+        select(Registration)
+        .options(
+            selectinload(Registration.user),
+            selectinload(Registration.team),
+        )
+        .where(
+            Registration.id == registration_id,
+            Registration.tournament_id == tournament_id,
+        )
+    )
+
+    if not registration:
         return admin_redirect(
-            "Não é possível excluir definitivamente uma inscrição que já possui partida. Use Cancelar.",
+            "Inscrição não encontrada.",
             f"/admin/campeonato/{tournament_id}",
         )
+
+    linked_match = db.scalar(
+        select(Match.id).where(or_(
+            Match.home_registration_id == registration.id,
+            Match.away_registration_id == registration.id,
+            Match.winner_registration_id == registration.id,
+        ))
+    )
+
+    if linked_match:
+        return admin_redirect(
+            (
+                "Esta inscrição já possui partida vinculada. "
+                "Use Cancelar ou limpe o sorteio antes de excluir."
+            ),
+            f"/admin/campeonato/{tournament_id}",
+        )
+
     label = registration_label(registration)
-    db.delete(registration)
-    db.commit()
-    audit(db, "delete_registration", "tournament", tournament_id, label)
-    return admin_redirect("Inscrição removida definitivamente.", f"/admin/campeonato/{tournament_id}")
 
+    try:
+        # O PostgreSQL não permite apagar a inscrição enquanto existir
+        # um pagamento apontando para ela.
+        deleted_payments = (
+            db.query(Payment)
+            .filter(Payment.registration_id == registration.id)
+            .delete(synchronize_session=False)
+        )
 
+        db.delete(registration)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        return admin_redirect(
+            f"Não foi possível excluir a inscrição: {exc}",
+            f"/admin/campeonato/{tournament_id}",
+        )
+
+    audit(
+        db,
+        "delete_registration",
+        "tournament",
+        tournament_id,
+        (
+            f"{label}; registration_id={registration_id}; "
+            f"payments_deleted={deleted_payments}"
+        ),
+    )
+
+    return admin_redirect(
+        (
+            f"Inscrição de {label} excluída com sucesso. "
+            f"{deleted_payments} pagamento(s) vinculado(s) também foram removidos."
+        ),
+        f"/admin/campeonato/{tournament_id}",
+    )
 @app.post("/admin/campeonato/{tournament_id}/limpar-sorteio")
 def admin_clear_draw(
     tournament_id: int,

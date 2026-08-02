@@ -175,8 +175,8 @@
                 </form>
 
                 <form method="post" action="/admin/campeonato/{{ tournament.id }}/inscricao/{{ r.id }}/remover"
-                      onsubmit="return confirm('Excluir definitivamente esta inscrição?')">
-                  <button type="submit" class="btn btn-small btn-ghost-danger">Excluir</button>
+                      onsubmit="return confirm('Excluir esta inscrição e qualquer pagamento vinculado? Esta ação não pode ser desfeita.')">
+                  <button type="submit" class="btn btn-small btn-ghost-danger">Excluir inscrição</button>
                 </form>
               </td>
             </tr>

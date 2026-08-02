@@ -112,3 +112,12 @@ use um banco novo na primeira publicação.
 - A página Pix atualiza automaticamente a cada 5 segundos enquanto estiver pendente.
 - O painel mostra lado a lado o status do pagamento e da inscrição.
 - A página de pagamento usa `Cache-Control: no-store` para não exibir dados antigos.
+
+
+## Correção: excluir inscrição
+
+- Pagamentos vinculados são excluídos antes da inscrição.
+- A exclusão funciona para inscrições gratuitas e pagas.
+- Inscrições com partidas vinculadas não são apagadas para preservar o campeonato.
+- Nesse caso, o painel orienta cancelar a inscrição ou limpar o sorteio primeiro.
+- Erros do PostgreSQL agora aparecem como mensagem no painel em vez de tela branca.
