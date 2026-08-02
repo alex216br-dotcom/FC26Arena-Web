@@ -89,7 +89,7 @@
           <button class="btn btn-primary">Inscrever-se</button>
         </form>
       {% elif not user %}
-        <a class="btn btn-primary" href="/login">Entrar para se inscrever</a>
+        <a class="btn btn-primary" href="/login?next=/campeonato/{{ tournament.slug }}">Entrar ou criar conta para se inscrever</a>
       {% endif %}
     </div>
 
@@ -248,7 +248,7 @@
                 {% elif user %}
                   <span class="muted">Somente adversários</span>
                 {% else %}
-                  <a class="btn btn-small" href="/login">Entrar</a>
+                  <a class="btn btn-small" href="/login?next=/campeonato/{{ tournament.slug }}">Entrar ou criar conta</a>
                 {% endif %}
               </td>
             </tr>

@@ -211,3 +211,10 @@ do campeonato. Essa proteção evita apagar o histórico de outros jogadores.
 - Jogadores envolvidos no confronto veem o botão `Abrir Sala PVP`.
 - Visitantes veem o botão para entrar na conta.
 - Jogadores também encontram as Salas PVP em `Meu painel`.
+
+
+## Fluxo de inscrição sem login
+- O botão do campeonato leva para uma tela com Entrar, Criar conta e Esqueci minha senha.
+- Login e cadastro preservam o campeonato escolhido.
+- Depois de entrar ou criar a conta, o jogador retorna automaticamente à página do campeonato para concluir a inscrição.
+- Os destinos de retorno são validados para aceitar somente caminhos internos do site.

@@ -622,3 +622,16 @@ body.menu-open{overflow:hidden}
     width:100%;
   }
 }
+
+
+/* Fluxo de acesso e cadastro pelo campeonato */
+.auth-page{min-height:calc(100vh - 150px);display:grid;place-items:center;padding:46px 18px}
+.auth-card{width:min(470px,100%);padding:28px;border:1px solid #28583a;border-radius:14px;background:linear-gradient(145deg,#091510,#050c09);box-shadow:0 24px 75px #0009}
+.auth-card h1{font-size:34px;margin:9px 0}.auth-card>p{line-height:1.5}
+.auth-main-button,.auth-create-button{display:flex;width:100%;justify-content:center;text-align:center}
+.auth-divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--muted);font-size:12px}
+.auth-divider:before,.auth-divider:after{content:"";height:1px;flex:1;background:#244032}
+.auth-create-button{border-color:#37d655;color:#70ff89;background:#0a2111}
+.auth-create-button:hover{background:#10351a}
+.auth-forgot{display:block;margin-top:17px;text-align:center;color:var(--green);font-weight:700}
+@media(max-width:520px){.auth-page{padding:24px 12px}.auth-card{padding:21px}.auth-card h1{font-size:29px}}
