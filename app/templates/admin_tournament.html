@@ -166,7 +166,7 @@
               <td class="admin-actions">
                 <form method="post" action="/admin/campeonato/{{ tournament.id }}/inscricao/{{ r.id }}/status">
                   {% if r.status != 'approved' %}
-                    <button type="submit" class="btn btn-small btn-primary" name="action" value="approve">Aprovar</button>
+                    <button type="submit" class="btn btn-small btn-primary" name="action" value="approve">Aprovar inscrição e pagamento</button>
                   {% endif %}
                   {% if r.status == 'approved' %}
                     <button type="submit" class="btn btn-small" name="action" value="pending">Pendente</button>

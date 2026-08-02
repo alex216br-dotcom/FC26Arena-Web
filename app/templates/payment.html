@@ -2,7 +2,9 @@
 {% block title %}Pagamento — FC26 Arena{% endblock %}
 {% block content %}
 {% if payment.status == 'pending' %}
-  <meta http-equiv="refresh" content="5">
+  <meta http-equiv="refresh" content="3">
+{% elif payment.status == 'approved' %}
+  <meta http-equiv="refresh" content="2;url=/painel">
 {% endif %}
 
 <section class="container section">
@@ -16,7 +18,7 @@
         <span class="payment-status-icon">✅</span>
         <div>
           <strong>Pagamento aprovado</strong>
-          <p>Sua inscrição foi confirmada e você já está participando do campeonato.</p>
+          <p>Sua inscrição foi confirmada. Você será levado automaticamente ao seu painel.</p>
         </div>
       {% elif payment.status == 'rejected' %}
         <span class="payment-status-icon">❌</span>

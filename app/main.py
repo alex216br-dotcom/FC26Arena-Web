@@ -484,6 +484,26 @@ def payment_page(payment_id: int, request: Request, db: Session = Depends(get_db
     if not payment or not registration_contains_user(db, payment.registration, user):
         raise HTTPException(404)
 
+    registration = payment.registration
+
+    # Repara automaticamente registros antigos que ficaram inconsistentes:
+    # inscrição aprovada + pagamento pendente, ou o contrário.
+    needs_approval_sync = (
+        payment.status == "approved"
+        or registration.payment_status == "approved"
+    )
+    if needs_approval_sync and (
+        payment.status != "approved"
+        or registration.payment_status != "approved"
+        or registration.status != "approved"
+    ):
+        payment.status = "approved"
+        registration.payment_status = "approved"
+        registration.status = "approved"
+        db.commit()
+        db.refresh(payment)
+        db.refresh(registration)
+
     response = templates.TemplateResponse(
         "payment.html",
         ctx(request, payment=payment),
@@ -1050,33 +1070,139 @@ def admin_registration_status(
     db: Session = Depends(get_db),
 ):
     require_admin(request)
-    registration = db.get(Registration, registration_id)
-    if not registration or registration.tournament_id != tournament_id:
-        raise HTTPException(404)
+
+    registration = db.scalar(
+        select(Registration)
+        .options(
+            selectinload(Registration.tournament),
+            selectinload(Registration.user),
+            selectinload(Registration.team),
+        )
+        .where(
+            Registration.id == registration_id,
+            Registration.tournament_id == tournament_id,
+        )
+    )
+    if not registration:
+        return admin_redirect(
+            "Inscrição não encontrada.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+
+    payments = db.scalars(
+        select(Payment).where(Payment.registration_id == registration.id)
+    ).all()
+    paid_tournament = float(registration.tournament.registration_fee) > 0
+
+    try:
+        if action == "approve":
+            registration.status = "approved"
+
+            if paid_tournament:
+                registration.payment_status = "approved"
+
+                # Atualiza todos os pagamentos existentes.
+                for payment in payments:
+                    payment.status = "approved"
+
+                # Garante um registro de pagamento mesmo em cadastros antigos.
+                if not payments:
+                    payment = Payment(
+                        registration_id=registration.id,
+                        amount=registration.tournament.registration_fee,
+                        status="approved",
+                    )
+                    db.add(payment)
+            else:
+                registration.payment_status = "not_required"
+
+        elif action == "pending":
+            registration.status = "pending"
+
+            if paid_tournament:
+                registration.payment_status = "pending"
+                for payment in payments:
+                    payment.status = "pending"
+            else:
+                registration.payment_status = "not_required"
+
+        elif action == "reject":
+            registration.status = "rejected"
+
+            if paid_tournament:
+                registration.payment_status = "rejected"
+                for payment in payments:
+                    payment.status = "rejected"
+            else:
+                registration.payment_status = "not_required"
+
+        elif action == "cancel":
+            registration.status = "cancelled"
+            registration.group_name = None
+
+        elif action == "restore":
+            if paid_tournament:
+                has_approved_payment = any(
+                    payment.status == "approved" for payment in payments
+                )
+                if has_approved_payment:
+                    registration.status = "approved"
+                    registration.payment_status = "approved"
+                else:
+                    registration.status = "pending"
+                    registration.payment_status = "pending"
+            else:
+                registration.status = "approved"
+                registration.payment_status = "not_required"
+
+        else:
+            return admin_redirect(
+                "Ação inválida.",
+                f"/admin/campeonato/{tournament_id}",
+            )
+
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+        return admin_redirect(
+            f"Não foi possível atualizar a inscrição: {exc}",
+            f"/admin/campeonato/{tournament_id}",
+        )
 
     if action == "approve":
-        registration.status = "approved"
-        if float(registration.tournament.registration_fee) == 0:
-            registration.payment_status = "not_required"
-        elif registration.payment_status != "approved":
-            registration.payment_status = "approved"
-    elif action == "pending":
-        registration.status = "pending"
-    elif action == "reject":
-        registration.status = "rejected"
-        registration.payment_status = "rejected"
-    elif action == "cancel":
-        registration.status = "cancelled"
-        registration.group_name = None
-    elif action == "restore":
-        registration.status = "approved"
-    else:
-        return admin_redirect("Ação inválida.", f"/admin/campeonato/{tournament_id}")
+        for recipient in registration_users(db, registration):
+            notify_user(
+                db,
+                recipient,
+                "Inscrição confirmada",
+                (
+                    f"Sua inscrição em {registration.tournament.name} "
+                    f"foi aprovada e o pagamento foi confirmado."
+                    if paid_tournament
+                    else
+                    f"Sua inscrição em {registration.tournament.name} foi aprovada."
+                ),
+            )
 
-    db.commit()
-    audit(db, "registration_status", "registration", registration.id, action)
-    return admin_redirect("Inscrição atualizada.", f"/admin/campeonato/{tournament_id}")
+    audit(
+        db,
+        "registration_status",
+        "registration",
+        registration.id,
+        (
+            f"action={action}; status={registration.status}; "
+            f"payment_status={registration.payment_status}"
+        ),
+    )
 
+    return admin_redirect(
+        (
+            f"Inscrição atualizada: {registration.status}. "
+            f"Pagamento: {registration.payment_status}."
+        ),
+        f"/admin/campeonato/{tournament_id}",
+    )
 @app.post("/admin/campeonato/{tournament_id}/inscricao/{registration_id}/remover")
 def admin_remove_registration(
     tournament_id: int,

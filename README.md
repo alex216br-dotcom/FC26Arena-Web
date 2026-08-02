@@ -121,3 +121,12 @@ use um banco novo na primeira publicação.
 - Inscrições com partidas vinculadas não são apagadas para preservar o campeonato.
 - Nesse caso, o painel orienta cancelar a inscrição ou limpar o sorteio primeiro.
 - Erros do PostgreSQL agora aparecem como mensagem no painel em vez de tela branca.
+
+
+## Aprovação automática e continuação da inscrição
+
+- Aprovar a inscrição em um campeonato pago também aprova o registro real de pagamento.
+- Registros antigos com inscrição aprovada e pagamento pendente são reparados automaticamente.
+- A página Pix verifica o status a cada 3 segundos.
+- Após a aprovação, o jogador é enviado automaticamente para o painel em 2 segundos.
+- O botão administrativo agora informa que aprova inscrição e pagamento.
