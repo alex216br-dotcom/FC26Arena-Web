@@ -192,16 +192,47 @@
           </div>
           <div class="field"><label>Data e horário</label><input name="starts_at" value="A definir"></div>
           <div class="field"><label>Tema</label><select name="color_theme"><option value="green">Verde</option><option value="purple">Roxo</option><option value="cyan">Azul</option><option value="orange">Laranja</option></select></div>
-          <div class="field span-2">
-            <label>Regras das partidas</label>
-            <textarea name="rules" rows="7" data-normal-rules>• Duração da partida: 5 minutos por tempo.
-• Elenco obrigatório: Online.
-• São permitidos times clássicos e seleções.
-• Em partidas eliminatórias, empate deve ser decidido na prorrogação e nos pênaltis.
-• O resultado precisa ser confirmado pelos dois jogadores na Sala PVP.</textarea>
-            <small class="field-help">
-              Estas regras serão usadas nos campeonatos normais. A Arena Duelo Rápido mantém suas próprias regras.
-            </small>
+
+          <div class="field span-2 tournament-rules-config">
+            <h3>⚙️ Configurações das regras</h3>
+            <p class="field-help">Escolha as regras específicas deste campeonato.</p>
+
+            <div class="rules-config-grid">
+              <div class="field">
+                <label>Minutos por tempo</label>
+                <select name="match_minutes">
+                  <option value="3">3 minutos</option>
+                  <option value="4">4 minutos</option>
+                  <option value="5" selected>5 minutos</option>
+                  <option value="6">6 minutos</option>
+                  <option value="7">7 minutos</option>
+                  <option value="8">8 minutos</option>
+                  <option value="9">9 minutos</option>
+                  <option value="10">10 minutos</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label>Tipo de elenco</label>
+                <select name="squad_type">
+                  <option value="online" selected>Elenco Online</option>
+                  <option value="default">Elenco Padrão</option>
+                  <option value="custom">Elenco Personalizado</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="rules-checkbox-list">
+              <label><input type="checkbox" name="allow_classic_teams" value="1" checked> Permitir times clássicos</label>
+              <label><input type="checkbox" name="allow_national_teams" value="1" checked> Permitir seleções</label>
+              <label><input type="checkbox" name="knockout_extra_time" value="1" checked> Prorrogação e pênaltis no mata-mata</label>
+              <label><input type="checkbox" name="require_result_confirmation" value="1" checked> Exigir confirmação dos dois jogadores na Sala PVP</label>
+            </div>
+
+            <div class="field">
+              <label>Regras adicionais</label>
+              <textarea name="rules" rows="5" placeholder="Digite somente regras extras deste campeonato."></textarea>
+            </div>
           </div>
           <div class="span-2"><button class="btn btn-primary">Criar campeonato</button></div>
         </form>

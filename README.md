@@ -313,3 +313,18 @@ Foi adicionado `flush()` antes da exclusão das inscrições para garantir a ord
 As regras padrão agora aparecem mesmo quando o campeonato já possui um regulamento
 específico salvo. O regulamento específico é exibido abaixo como regra adicional,
 sem substituir as regras obrigatórias.
+
+
+## Regras configuráveis por campeonato
+
+No cadastro e na edição, o administrador pode escolher:
+- duração de 3 a 10 minutos por tempo;
+- elenco Online, Padrão ou Personalizado;
+- permitir ou proibir times clássicos;
+- permitir ou proibir seleções;
+- usar prorrogação e pênaltis no mata-mata;
+- exigir ou não confirmação dos dois jogadores na Sala PVP;
+- regras adicionais em texto livre.
+
+As escolhas aparecem automaticamente na página pública daquele campeonato.
+Campeonatos existentes recebem os padrões: 5 minutos, elenco Online e todas as opções ativadas.

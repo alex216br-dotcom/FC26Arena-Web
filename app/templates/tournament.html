@@ -35,10 +35,8 @@
           </div>
         </div>
         <div class="match-rules-list">
-          {% for line in rules_display.mandatory.split('\n') %}
-            {% if line.strip() %}
-              <div class="match-rule-item">{{ line }}</div>
-            {% endif %}
+          {% for line in rules_display['items'] %}
+            <div class="match-rule-item">{{ line }}</div>
           {% endfor %}
         </div>
 

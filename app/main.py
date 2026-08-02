@@ -98,6 +98,42 @@ def ensure_tournament_format_columns():
             "ADD COLUMN duel_series INTEGER NOT NULL DEFAULT 1"
         )
 
+    if "match_minutes" not in existing_columns:
+        statements.append(
+            "ALTER TABLE tournaments "
+            "ADD COLUMN match_minutes INTEGER NOT NULL DEFAULT 5"
+        )
+
+    if "squad_type" not in existing_columns:
+        statements.append(
+            "ALTER TABLE tournaments "
+            "ADD COLUMN squad_type VARCHAR(30) NOT NULL DEFAULT 'online'"
+        )
+
+    if "allow_classic_teams" not in existing_columns:
+        statements.append(
+            "ALTER TABLE tournaments "
+            "ADD COLUMN allow_classic_teams BOOLEAN NOT NULL DEFAULT TRUE"
+        )
+
+    if "allow_national_teams" not in existing_columns:
+        statements.append(
+            "ALTER TABLE tournaments "
+            "ADD COLUMN allow_national_teams BOOLEAN NOT NULL DEFAULT TRUE"
+        )
+
+    if "knockout_extra_time" not in existing_columns:
+        statements.append(
+            "ALTER TABLE tournaments "
+            "ADD COLUMN knockout_extra_time BOOLEAN NOT NULL DEFAULT TRUE"
+        )
+
+    if "require_result_confirmation" not in existing_columns:
+        statements.append(
+            "ALTER TABLE tournaments "
+            "ADD COLUMN require_result_confirmation BOOLEAN NOT NULL DEFAULT TRUE"
+        )
+
     if statements:
         with engine.begin() as connection:
             for statement in statements:
@@ -139,20 +175,45 @@ def normal_tournament_rules(rules: str | None) -> str:
     return clean or DEFAULT_MATCH_RULES
 
 
-def tournament_display_rules(tournament: Tournament) -> dict[str, str]:
+def tournament_display_rules(tournament: Tournament) -> dict[str, object]:
     if tournament.quick_duel:
         return {
-            "mandatory": "",
+            "items": [],
             "additional": (tournament.rules or "").strip(),
         }
 
-    additional = (tournament.rules or "").strip()
-    if additional == DEFAULT_MATCH_RULES.strip():
-        additional = ""
-
+    squad_labels = {
+        "online": "Online",
+        "custom": "Personalizado",
+        "default": "Padrão",
+    }
+    items = [
+        f"Duração da partida: {tournament.match_minutes} minutos por tempo.",
+        f"Tipo de elenco: {squad_labels.get(tournament.squad_type, tournament.squad_type)}.",
+        (
+            "Times clássicos são permitidos."
+            if tournament.allow_classic_teams
+            else "Times clássicos não são permitidos."
+        ),
+        (
+            "Seleções são permitidas."
+            if tournament.allow_national_teams
+            else "Seleções não são permitidas."
+        ),
+        (
+            "No mata-mata, empate deve ser decidido na prorrogação e nos pênaltis."
+            if tournament.knockout_extra_time
+            else "No mata-mata, siga a regra adicional definida pela administração em caso de empate."
+        ),
+        (
+            "O resultado deve ser confirmado pelos dois jogadores na Sala PVP."
+            if tournament.require_result_confirmation
+            else "A confirmação do adversário na Sala PVP não é obrigatória."
+        ),
+    ]
     return {
-        "mandatory": DEFAULT_MATCH_RULES,
-        "additional": additional,
+        "items": items,
+        "additional": (tournament.rules or "").strip(),
     }
 
 
@@ -1285,9 +1346,17 @@ def match_result(match_id: int, request: Request, home_score: Annotated[int, For
     match.home_score = max(0, home_score)
     match.away_score = max(0, away_score)
     match.result_submitted_by_user_id = user.id
-    match.status = "awaiting_confirmation"
-    match.result_confirmed = False
-    db.commit()
+
+    if match.tournament.require_result_confirmation:
+        match.status = "awaiting_confirmation"
+        match.result_confirmed = False
+        db.commit()
+    else:
+        match.status = "completed"
+        match.result_confirmed = True
+        db.commit()
+        process_confirmed_result(db, match)
+
     return RedirectResponse(f"/partida/{match.id}", 303)
 
 @app.post("/partida/{match_id}/confirmar")
@@ -2125,6 +2194,12 @@ def admin_edit_tournament(
     league_turns: Annotated[int, Form()] = 2,
     quick_duel: Annotated[str | None, Form()] = None,
     duel_series: Annotated[int, Form()] = 1,
+    match_minutes: Annotated[int, Form()] = 5,
+    squad_type: Annotated[str, Form()] = "online",
+    allow_classic_teams: Annotated[str | None, Form()] = None,
+    allow_national_teams: Annotated[str | None, Form()] = None,
+    knockout_extra_time: Annotated[str | None, Form()] = None,
+    require_result_confirmation: Annotated[str | None, Form()] = None,
     generation: Annotated[str, Form()] = "nova",
     max_entries: Annotated[int, Form()] = 32,
     group_size: Annotated[int, Form()] = 4,
@@ -2158,6 +2233,17 @@ def admin_edit_tournament(
             )
     else:
         duel_series = 1
+
+    if match_minutes not in {3, 4, 5, 6, 7, 8, 9, 10}:
+        return admin_redirect(
+            "Escolha uma duração entre 3 e 10 minutos por tempo.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+    if squad_type not in {"online", "default", "custom"}:
+        return admin_redirect(
+            "Tipo de elenco inválido.",
+            f"/admin/campeonato/{tournament_id}",
+        )
 
     if mode not in {"1x1", "2x2", "Pro Clubs"}:
         return admin_redirect(
@@ -2238,6 +2324,12 @@ def admin_edit_tournament(
     tournament.league_turns = league_turns
     tournament.quick_duel = is_quick_duel
     tournament.duel_series = duel_series
+    tournament.match_minutes = match_minutes
+    tournament.squad_type = squad_type
+    tournament.allow_classic_teams = allow_classic_teams == "1"
+    tournament.allow_national_teams = allow_national_teams == "1"
+    tournament.knockout_extra_time = knockout_extra_time == "1"
+    tournament.require_result_confirmation = require_result_confirmation == "1"
     tournament.generation = generation
     tournament.max_entries = max_entries
     tournament.group_size = group_size
@@ -2611,6 +2703,12 @@ def admin_create_tournament(
     league_turns: Annotated[int, Form()] = 2,
     quick_duel: Annotated[str | None, Form()] = None,
     duel_series: Annotated[int, Form()] = 1,
+    match_minutes: Annotated[int, Form()] = 5,
+    squad_type: Annotated[str, Form()] = "online",
+    allow_classic_teams: Annotated[str | None, Form()] = None,
+    allow_national_teams: Annotated[str | None, Form()] = None,
+    knockout_extra_time: Annotated[str | None, Form()] = None,
+    require_result_confirmation: Annotated[str | None, Form()] = None,
     generation: Annotated[str, Form()] = "nova",
     max_entries: Annotated[int, Form()] = 32,
     group_size: Annotated[int, Form()] = 4,
@@ -2637,6 +2735,11 @@ def admin_create_tournament(
             return admin_redirect("Escolha partida única ou melhor de 3.")
     else:
         duel_series = 1
+
+    if match_minutes not in {3, 4, 5, 6, 7, 8, 9, 10}:
+        return admin_redirect("Escolha uma duração entre 3 e 10 minutos por tempo.")
+    if squad_type not in {"online", "default", "custom"}:
+        return admin_redirect("Tipo de elenco inválido.")
 
     if not name.strip():
         return admin_redirect("Informe o nome do campeonato.")
@@ -2687,6 +2790,12 @@ def admin_create_tournament(
         league_turns=league_turns,
         quick_duel=is_quick_duel,
         duel_series=duel_series,
+        match_minutes=match_minutes,
+        squad_type=squad_type,
+        allow_classic_teams=allow_classic_teams == "1",
+        allow_national_teams=allow_national_teams == "1",
+        knockout_extra_time=knockout_extra_time == "1",
+        require_result_confirmation=require_result_confirmation == "1",
         generation=generation,
         max_entries=max_entries,
         group_size=group_size,
