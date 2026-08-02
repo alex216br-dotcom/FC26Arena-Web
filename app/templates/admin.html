@@ -1,5 +1,49 @@
 {% extends "base.html" %}
-{% block title %}Administração — FC26 Arena{% endblock %}
+{% block title %}Administração — FC26 Arena
+<script>
+(() => {
+  const toggle = document.querySelector('[data-quick-duel-toggle]');
+  if (!toggle) return;
+  const form = toggle.closest('form');
+  const series = form.querySelector('[data-duel-series-field]');
+  const finance = form.querySelector('[data-duel-finance]');
+  const fee = form.querySelector('[data-duel-fee]');
+  const prize = form.querySelector('[data-duel-prize-input]');
+  const totalOut = form.querySelector('[data-duel-total]');
+  const prizeOut = form.querySelector('[data-duel-prize]');
+  const adminOut = form.querySelector('[data-duel-admin]');
+
+  const money = value => Number(value || 0).toLocaleString('pt-BR', {
+    style: 'currency', currency: 'BRL'
+  });
+
+  function update() {
+    const active = toggle.checked;
+    series.hidden = !active;
+    finance.hidden = !active;
+    if (active) {
+      form.elements.mode.value = '1x1';
+      form.elements.competition_format.value = 'league';
+      form.elements.league_turns.value = '1';
+      form.elements.max_entries.value = '2';
+      form.elements.group_size.value = '2';
+      form.elements.prize_places.value = '1';
+    }
+    const total = Math.max(0, Number(fee.value || 0)) * 2;
+    const prizeValue = Math.max(0, Number(prize.value || 0));
+    totalOut.textContent = money(total);
+    prizeOut.textContent = money(prizeValue);
+    adminOut.textContent = money(total - prizeValue);
+  }
+
+  toggle.addEventListener('change', update);
+  fee.addEventListener('input', update);
+  prize.addEventListener('input', update);
+  update();
+})();
+</script>
+
+{% endblock %}
 {% block content %}
 <section class="admin-shell">
   <aside class="admin-sidebar">
@@ -79,6 +123,15 @@
         <summary>＋ Criar novo campeonato</summary>
         <form class="admin-form-grid" method="post" action="/admin/campeonatos">
           <div class="field span-2"><label>Nome</label><input name="name" required></div>
+          <div class="field span-2 quick-duel-admin-box">
+            <label class="quick-duel-check">
+              <input type="checkbox" name="quick_duel" value="1" data-quick-duel-toggle>
+              <span>
+                <strong>⚡ Duelo Rápido 1x1</strong>
+                <small>Cria um campeonato de 2 jogadores, final automática e apenas 1 campeão premiado.</small>
+              </span>
+            </label>
+          </div>
           <div class="field"><label>Modalidade</label><select name="mode"><option>1x1</option><option>2x2</option><option>Pro Clubs</option></select></div>
           <div class="field">
             <label>Formato da competição</label>
@@ -86,6 +139,14 @@
               <option value="groups_knockout">Grupos + mata-mata</option>
               <option value="league">Liga / pontos corridos</option>
             </select>
+          </div>
+          <div class="field" data-duel-series-field hidden>
+            <label>Formato da final</label>
+            <select name="duel_series">
+              <option value="1">Partida única</option>
+              <option value="3">Melhor de 3 partidas</option>
+            </select>
+            <small class="field-help">A Sala PVP identificará o formato escolhido.</small>
           </div>
           <div class="field">
             <label>Turnos nos pontos corridos</label>
@@ -102,10 +163,18 @@
             <input type="number" min="2" name="group_size" value="4">
             <small class="field-help">Usado somente em Grupos + mata-mata.</small>
           </div>
-          <div class="field"><label>Taxa de inscrição</label><input type="number" min="0" step="0.01" name="registration_fee" value="0"></div>
+          <div class="field"><label>Taxa de inscrição</label><input type="number" min="0" step="0.01" name="registration_fee" value="0" data-duel-fee></div>
+          <div class="field quick-duel-finance" data-duel-finance hidden>
+            <label>Resumo financeiro do duelo</label>
+            <div class="duel-finance-preview">
+              <span>Arrecadação: <strong data-duel-total>R$ 0,00</strong></span>
+              <span>Premiação: <strong data-duel-prize>R$ 0,00</strong></span>
+              <span>Administração: <strong data-duel-admin>R$ 0,00</strong></span>
+            </div>
+          </div>
           <div class="field">
             <label>Premiação total</label>
-            <input type="number" min="0" step="0.01" name="prize" value="50">
+            <input type="number" min="0" step="0.01" name="prize" value="50" data-duel-prize-input>
             <small class="field-help">Se não informar os valores abaixo, o total será dividido igualmente.</small>
           </div>
           <div class="field">

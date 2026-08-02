@@ -223,3 +223,26 @@ Após uma inscrição gratuita ou após a aprovação do pagamento, o jogador v�
 - aviso para aguardar o preenchimento das vagas;
 - explicação sobre geração da tabela e Salas PVP;
 - botões para abrir o painel ou retornar ao campeonato.
+
+
+## Restrição por geração/plataforma
+
+- Jogadores de nova geração só podem entrar em campeonatos de nova geração.
+- Jogadores de antiga geração só podem entrar em campeonatos de antiga geração.
+- Em campeonatos 2x2 e Pro Clubs, todos os membros da equipe precisam estar na geração correta.
+- A página do campeonato avisa quando o perfil é incompatível.
+- O servidor também bloqueia tentativas de inscrição direta.
+
+
+## Duelo Rápido 1x1
+
+No formulário de criação e edição do campeonato:
+- opção `Duelo Rápido 1x1`;
+- limite automático de 2 participantes;
+- modalidade 1x1;
+- final em partida única ou melhor de 3;
+- somente o campeão é premiado;
+- prévia de arrecadação, premiação e valor administrativo;
+- fechamento e geração automática da final quando os 2 pagamentos forem aprovados;
+- notificação e Sala PVP liberadas automaticamente;
+- respeito à restrição de nova e antiga geração.

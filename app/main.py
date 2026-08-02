@@ -84,6 +84,18 @@ def ensure_tournament_format_columns():
             "ADD COLUMN league_turns INTEGER NOT NULL DEFAULT 2"
         )
 
+    if "quick_duel" not in existing_columns:
+        statements.append(
+            "ALTER TABLE tournaments "
+            "ADD COLUMN quick_duel BOOLEAN NOT NULL DEFAULT FALSE"
+        )
+
+    if "duel_series" not in existing_columns:
+        statements.append(
+            "ALTER TABLE tournaments "
+            "ADD COLUMN duel_series INTEGER NOT NULL DEFAULT 1"
+        )
+
     if statements:
         with engine.begin() as connection:
             for statement in statements:
@@ -94,6 +106,59 @@ def minimum_entries_for_schedule(tournament: Tournament) -> int:
     if tournament.competition_format == "league":
         return 2
     return max(2, tournament.group_size)
+
+
+def start_quick_duel_if_ready(db: Session, tournament: Tournament) -> bool:
+    """Fecha as vagas e cria a final quando os 2 pagamentos forem aprovados."""
+    if not tournament.quick_duel:
+        return False
+
+    approved = db.scalars(
+        select(Registration).where(
+            Registration.tournament_id == tournament.id,
+            Registration.status == "approved",
+        )
+    ).all()
+    if len(approved) != 2:
+        return False
+
+    existing_match = db.scalar(
+        select(Match.id).where(Match.tournament_id == tournament.id)
+    )
+    if existing_match:
+        return False
+
+    tournament.status = "closed"
+    tournament.mode = "1x1"
+    tournament.competition_format = "league"
+    tournament.league_turns = 1
+    tournament.max_entries = 2
+    generate_league(db, tournament)
+
+    match = db.scalar(
+        select(Match).where(Match.tournament_id == tournament.id)
+    )
+    if match:
+        match.round_name = (
+            "Final — melhor de 3"
+            if tournament.duel_series == 3
+            else "Final — partida única"
+        )
+        match.group_name = "Duelo Rápido"
+        db.commit()
+
+    for registration in approved:
+        for recipient in registration_users(db, registration):
+            notify_user(
+                db,
+                recipient,
+                "Duelo Rápido liberado",
+                (
+                    f"O campeonato {tournament.name} completou 2 jogadores. "
+                    "Sua final e a Sala PVP já estão disponíveis no painel."
+                ),
+            )
+    return True
 
 
 def _money(value: Decimal | float | int | str) -> Decimal:
@@ -345,6 +410,12 @@ def apply_payment_status(
     db.commit()
     db.refresh(payment)
     db.refresh(registration)
+
+    if normalized_status == "approved":
+        tournament = db.get(Tournament, registration.tournament_id)
+        if tournament:
+            start_quick_duel_if_ready(db, tournament)
+
     return payment, registration
 
 
@@ -745,6 +816,20 @@ def tournament_register(
     if total >= tournament.max_entries:
         raise HTTPException(400, "Vagas preenchidas.")
 
+    if user.generation != tournament.generation:
+        generation_label = (
+            "nova geração"
+            if tournament.generation == "nova"
+            else "antiga geração"
+        )
+        raise HTTPException(
+            400,
+            (
+                f"Este campeonato é exclusivo para jogadores da {generation_label}. "
+                "Atualize sua plataforma no perfil ou escolha um campeonato compatível."
+            ),
+        )
+
     if tournament.mode == "1x1":
         existing = db.scalar(select(Registration).where(Registration.tournament_id == tournament.id, Registration.user_id == user.id))
         if existing:
@@ -757,6 +842,33 @@ def tournament_register(
         membership = db.scalar(select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == user.id))
         if not team or not membership or team.mode != tournament.mode:
             raise HTTPException(403)
+
+        team_members = db.scalars(
+            select(User)
+            .join(TeamMember, TeamMember.user_id == User.id)
+            .where(TeamMember.team_id == team.id)
+        ).all()
+
+        incompatible_members = [
+            member.name
+            for member in team_members
+            if member.generation != tournament.generation
+        ]
+        if incompatible_members:
+            generation_label = (
+                "nova geração"
+                if tournament.generation == "nova"
+                else "antiga geração"
+            )
+            names = ", ".join(incompatible_members[:5])
+            raise HTTPException(
+                400,
+                (
+                    f"A equipe possui jogador(es) incompatível(is) com a {generation_label}: "
+                    f"{names}. Todos os integrantes precisam usar a geração correta."
+                ),
+            )
+
         existing = db.scalar(select(Registration).where(Registration.tournament_id == tournament.id, Registration.team_id == team.id))
         if existing:
             return RedirectResponse(f"/campeonato/{slug}", 303)
@@ -797,6 +909,7 @@ def tournament_register(
             "Aguarde o preenchimento das vagas e o início do campeonato."
         ),
     )
+    start_quick_duel_if_ready(db, tournament)
     return RedirectResponse(
         f"/inscricao/{registration.id}/confirmada",
         303,
@@ -1636,6 +1749,8 @@ def admin_edit_tournament(
     mode: Annotated[str, Form()],
     competition_format: Annotated[str, Form()] = "groups_knockout",
     league_turns: Annotated[int, Form()] = 2,
+    quick_duel: Annotated[str | None, Form()] = None,
+    duel_series: Annotated[int, Form()] = 1,
     generation: Annotated[str, Form()] = "nova",
     max_entries: Annotated[int, Form()] = 32,
     group_size: Annotated[int, Form()] = 4,
@@ -1653,6 +1768,22 @@ def admin_edit_tournament(
     tournament = db.get(Tournament, tournament_id)
     if not tournament:
         raise HTTPException(404)
+
+    is_quick_duel = quick_duel == "1"
+    if is_quick_duel:
+        mode = "1x1"
+        competition_format = "league"
+        league_turns = 1
+        max_entries = 2
+        group_size = 2
+        prize_places = 1
+        if duel_series not in {1, 3}:
+            return admin_redirect(
+                "Escolha partida única ou melhor de 3.",
+                f"/admin/campeonato/{tournament_id}",
+            )
+    else:
+        duel_series = 1
 
     if mode not in {"1x1", "2x2", "Pro Clubs"}:
         return admin_redirect(
@@ -1728,6 +1859,8 @@ def admin_edit_tournament(
     tournament.mode = mode
     tournament.competition_format = competition_format
     tournament.league_turns = league_turns
+    tournament.quick_duel = is_quick_duel
+    tournament.duel_series = duel_series
     tournament.generation = generation
     tournament.max_entries = max_entries
     tournament.group_size = group_size
@@ -1755,7 +1888,8 @@ def admin_edit_tournament(
         tournament.id,
         (
             f"{tournament.name}; format={competition_format}; "
-            f"league_turns={league_turns}; prize_places={prize_places}"
+            f"league_turns={league_turns}; quick_duel={is_quick_duel}; "
+            f"duel_series={duel_series}; prize_places={prize_places}"
         ),
     )
     return admin_redirect(
@@ -2098,6 +2232,8 @@ def admin_create_tournament(
     mode: Annotated[str, Form()],
     competition_format: Annotated[str, Form()] = "groups_knockout",
     league_turns: Annotated[int, Form()] = 2,
+    quick_duel: Annotated[str | None, Form()] = None,
+    duel_series: Annotated[int, Form()] = 1,
     generation: Annotated[str, Form()] = "nova",
     max_entries: Annotated[int, Form()] = 32,
     group_size: Annotated[int, Form()] = 4,
@@ -2111,6 +2247,19 @@ def admin_create_tournament(
     db: Session = Depends(get_db),
 ):
     require_admin(request)
+
+    is_quick_duel = quick_duel == "1"
+    if is_quick_duel:
+        mode = "1x1"
+        competition_format = "league"
+        league_turns = 1
+        max_entries = 2
+        group_size = 2
+        prize_places = 1
+        if duel_series not in {1, 3}:
+            return admin_redirect("Escolha partida única ou melhor de 3.")
+    else:
+        duel_series = 1
 
     if not name.strip():
         return admin_redirect("Informe o nome do campeonato.")
@@ -2156,6 +2305,8 @@ def admin_create_tournament(
         mode=mode,
         competition_format=competition_format,
         league_turns=league_turns,
+        quick_duel=is_quick_duel,
+        duel_series=duel_series,
         generation=generation,
         max_entries=max_entries,
         group_size=group_size,
@@ -2184,7 +2335,8 @@ def admin_create_tournament(
         tournament.id,
         (
             f"{tournament.name}; format={competition_format}; "
-            f"league_turns={league_turns}; prize_places={prize_places}"
+            f"league_turns={league_turns}; quick_duel={is_quick_duel}; "
+            f"duel_series={duel_series}; prize_places={prize_places}"
         ),
     )
     return admin_redirect(

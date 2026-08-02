@@ -11,6 +11,12 @@
         </span>
       </div>
       <h1>{{ tournament.name }}</h1>
+      {% if tournament.quick_duel %}
+        <div class="quick-duel-public-badge">
+          ⚡ Duelo Rápido · 2 jogadores ·
+          {{ 'Melhor de 3' if tournament.duel_series == 3 else 'Partida única' }}
+        </div>
+      {% endif %}
       <p>
         {{ 'Nova geração' if tournament.generation=='nova' else 'Antiga geração' }}
         · {{ tournament.starts_at }}
@@ -74,7 +80,22 @@
       </div>
 
       {% if user and tournament.status=='open' %}
-        <form class="tournament-register-form" method="post" action="/campeonato/{{ tournament.slug }}/inscrever">
+        
+{% if user and user.generation != tournament.generation %}
+  <div class="generation-block-warning">
+    <strong>⚠️ Campeonato incompatível com sua plataforma</strong>
+    <p>
+      Este campeonato é da
+      <strong>{{ 'nova geração' if tournament.generation == 'nova' else 'antiga geração' }}</strong>,
+      mas seu perfil está cadastrado como
+      <strong>{{ 'nova geração' if user.generation == 'nova' else 'antiga geração' }}</strong>.
+    </p>
+    <p>Escolha um campeonato compatível ou atualize sua plataforma no perfil.</p>
+    <a class="btn" href="/perfil">Atualizar meu perfil</a>
+  </div>
+{% endif %}
+
+<form class="tournament-register-form" method="post" action="/campeonato/{{ tournament.slug }}/inscrever">
           {% if tournament.mode!='1x1' %}
             <div class="field">
               <label>Equipe</label>
@@ -86,7 +107,11 @@
             </div>
           {% endif %}
           <div class="field"><label>Cupom</label><input name="coupon_code"></div>
-          <button class="btn btn-primary">Inscrever-se</button>
+          {% if user and user.generation != tournament.generation %}
+            <button class="btn btn-primary" type="button" disabled>Plataforma incompatível</button>
+          {% else %}
+            <button class="btn btn-primary" type="submit">Inscrever-se</button>
+          {% endif %}
         </form>
       {% elif not user %}
         <a class="btn btn-primary" href="/login?next=/campeonato/{{ tournament.slug }}">Entrar para se inscrever</a>

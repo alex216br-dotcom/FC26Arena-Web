@@ -674,3 +674,52 @@ body.menu-open{overflow:hidden}
   .success-next-steps>div{grid-template-columns:1fr}
   .success-actions{display:grid}.success-actions .btn{width:100%}
 }
+
+
+/* Bloqueio de inscrição por geração/plataforma */
+.generation-block-warning{
+  margin:18px 0;
+  padding:18px;
+  border:1px solid #8b6a24;
+  border-radius:11px;
+  background:#211a09;
+  text-align:left;
+}
+.generation-block-warning strong{color:#ffd966}
+.generation-block-warning p{margin:8px 0;color:#e5dcc4;line-height:1.5}
+.generation-block-warning .btn{margin-top:8px}
+button[disabled]{
+  opacity:.55;
+  cursor:not-allowed;
+  filter:grayscale(.35);
+}
+
+
+/* Duelo Rápido 1x1 */
+.quick-duel-admin-box{
+  border:1px solid #b68c2d;
+  border-radius:12px;
+  background:#211b0d;
+  padding:15px;
+}
+.quick-duel-check{display:flex;align-items:flex-start;gap:12px;cursor:pointer}
+.quick-duel-check input{width:21px;height:21px;margin-top:2px}
+.quick-duel-check span{display:grid;gap:4px}
+.quick-duel-check strong{color:#ffd866;font-size:17px}
+.quick-duel-check small{color:#d9cfb3}
+.duel-finance-preview{
+  display:grid;gap:7px;padding:12px;border:1px solid #294532;
+  border-radius:9px;background:#07110c
+}
+.duel-finance-preview span{display:flex;justify-content:space-between;gap:12px}
+.duel-finance-preview strong{color:#6dff8c}
+.quick-duel-public-badge{
+  display:inline-flex;margin:7px 0 14px;padding:8px 12px;border:1px solid #b58a2b;
+  border-radius:999px;background:#221b0c;color:#ffe080;font-weight:700
+}
+.quick-duel-public-info{
+  display:grid;gap:7px;margin:16px 0;padding:16px;border:1px solid #816722;
+  border-radius:11px;background:#1b1609
+}
+.quick-duel-public-info strong{color:#ffdc72}
+.quick-duel-public-info span{color:#e6dcc0}

@@ -71,6 +71,22 @@
 
       <form class="admin-form-grid" method="post" action="/admin/campeonato/{{ tournament.id }}/editar">
         <div class="field span-2"><label>Nome</label><input name="name" value="{{ tournament.name }}" required></div>
+        <div class="field span-2 quick-duel-admin-box">
+          <label class="quick-duel-check">
+            <input type="checkbox" name="quick_duel" value="1" {% if tournament.quick_duel %}checked{% endif %}>
+            <span>
+              <strong>⚡ Duelo Rápido 1x1</strong>
+              <small>Limite de 2 jogadores, final única automática e somente o campeão premiado.</small>
+            </span>
+          </label>
+        </div>
+        <div class="field">
+          <label>Formato da final</label>
+          <select name="duel_series">
+            <option value="1" {% if tournament.duel_series == 1 %}selected{% endif %}>Partida única</option>
+            <option value="3" {% if tournament.duel_series == 3 %}selected{% endif %}>Melhor de 3 partidas</option>
+          </select>
+        </div>
 
         <div class="field">
           <label>Modalidade</label>

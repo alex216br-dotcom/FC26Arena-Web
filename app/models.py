@@ -58,6 +58,8 @@ class Tournament(Base):
         String(30), default="groups_knockout"
     )
     league_turns: Mapped[int] = mapped_column(Integer, default=2)
+    quick_duel: Mapped[bool] = mapped_column(Boolean, default=False)
+    duel_series: Mapped[int] = mapped_column(Integer, default=1)
     generation: Mapped[str] = mapped_column(String(20), default="nova")
     max_entries: Mapped[int] = mapped_column(Integer, default=32)
     group_size: Mapped[int] = mapped_column(Integer, default=4)
