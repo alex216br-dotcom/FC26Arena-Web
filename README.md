@@ -328,3 +328,26 @@ No cadastro e na edição, o administrador pode escolher:
 
 As escolhas aparecem automaticamente na página pública daquele campeonato.
 Campeonatos existentes recebem os padrões: 5 minutos, elenco Online e todas as opções ativadas.
+
+
+## Notificação de pagamentos pendentes
+
+No painel administrativo:
+- sino com contador de pagamentos pendentes;
+- banner destacado quando houver pagamento aguardando aprovação;
+- botão direto para a seção de pagamentos;
+- atualização automática a cada 30 segundos;
+- notificação do navegador quando surgir novo pagamento, caso o administrador permita;
+- nenhuma integração externa necessária.
+
+A notificação funciona enquanto o painel administrativo estiver aberto e o administrador estiver autenticado.
+
+
+## Correção do login
+
+- WhatsApp pode ser digitado com ou sem DDD, espaços, parênteses e hífen.
+- O código 55 do Brasil também é aceito.
+- E-mail e ID EA não diferenciam letras maiúsculas de minúsculas.
+- Hash de senha antigo ou inválido não derruba o login.
+- O painel redireciona para o login quando a sessão não existe, em vez de responder 403.
+- Novos números de WhatsApp passam a ser armazenados apenas com dígitos.

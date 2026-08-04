@@ -45,6 +45,24 @@
 
 {% endblock %}
 {% block content %}
+
+<div id="admin-payment-alert" class="admin-payment-alert" hidden>
+  <div class="admin-payment-alert-icon">🔔</div>
+  <div>
+    <strong id="admin-payment-alert-title">Pagamento aguardando aprovação</strong>
+    <p id="admin-payment-alert-text">Existe pagamento pendente no painel.</p>
+  </div>
+  <a class="btn btn-primary" href="#pagamentos">Ver pagamentos</a>
+</div>
+
+<div class="admin-notification-toolbar">
+  <button type="button" id="admin-payment-bell" class="admin-payment-bell" aria-label="Pagamentos pendentes">
+    <span>🔔</span>
+    <span id="admin-payment-count" class="admin-payment-count">0</span>
+  </button>
+  <span class="muted">Alertas de pagamentos atualizados automaticamente</span>
+</div>
+
 <section class="admin-shell">
   <aside class="admin-sidebar">
     <div class="admin-brand"><span class="logo-mark">A</span><div><strong>FC26 Arena</strong><small>Central administrativa</small></div></div>
@@ -340,4 +358,94 @@
     </section>
   </main>
 </section>
+
+<script>
+(() => {
+  const bell = document.getElementById("admin-payment-bell");
+  const countBadge = document.getElementById("admin-payment-count");
+  const alertBox = document.getElementById("admin-payment-alert");
+  const alertTitle = document.getElementById("admin-payment-alert-title");
+  const alertText = document.getElementById("admin-payment-alert-text");
+  let lastCount = Number(sessionStorage.getItem("fc26_pending_payments") || 0);
+  let notificationAsked = sessionStorage.getItem("fc26_notification_asked") === "1";
+
+  async function askNotificationPermission() {
+    if (!("Notification" in window) || notificationAsked) return;
+    notificationAsked = true;
+    sessionStorage.setItem("fc26_notification_asked", "1");
+    try {
+      if (Notification.permission === "default") {
+        await Notification.requestPermission();
+      }
+    } catch (error) {
+      console.debug("Notificação do navegador indisponível.", error);
+    }
+  }
+
+  function showBrowserNotification(count, firstItem) {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const body = firstItem
+      ? `${firstItem.participant} — ${firstItem.tournament} — R$ ${firstItem.amount.toFixed(2)}`
+      : `${count} pagamento(s) aguardando aprovação.`;
+
+    new Notification("FC26 Arena — pagamento pendente", {
+      body,
+      icon: "/static/favicon.png",
+      tag: "fc26-pending-payments",
+    });
+  }
+
+  async function refreshPaymentNotifications() {
+    try {
+      const response = await fetch("/admin/notificacoes/pagamentos", {
+        credentials: "same-origin",
+        headers: {"Accept": "application/json"},
+      });
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const count = Number(data.count || 0);
+      countBadge.textContent = String(count);
+      bell.classList.toggle("has-pending", count > 0);
+
+      if (count > 0) {
+        alertBox.hidden = false;
+        alertTitle.textContent =
+          count === 1
+            ? "1 pagamento aguardando aprovação"
+            : `${count} pagamentos aguardando aprovação`;
+
+        const first = data.items && data.items.length ? data.items[0] : null;
+        alertText.textContent = first
+          ? `${first.participant} — ${first.tournament} — R$ ${Number(first.amount).toFixed(2)}`
+          : "Abra a área de pagamentos para conferir.";
+
+        if (count > lastCount) {
+          showBrowserNotification(count, first);
+        }
+      } else {
+        alertBox.hidden = true;
+      }
+
+      lastCount = count;
+      sessionStorage.setItem("fc26_pending_payments", String(count));
+    } catch (error) {
+      console.debug("Não foi possível atualizar pagamentos pendentes.", error);
+    }
+  }
+
+  bell?.addEventListener("click", () => {
+    askNotificationPermission();
+    document.getElementById("pagamentos")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  });
+
+  document.addEventListener("click", askNotificationPermission, {once: true});
+  refreshPaymentNotifications();
+  setInterval(refreshPaymentNotifications, 30000);
+})();
+</script>
+
 {% endblock %}

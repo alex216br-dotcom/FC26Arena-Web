@@ -882,3 +882,77 @@ button[disabled]{
 @media(max-width:700px){
   .rules-config-grid,.rules-checkbox-list{grid-template-columns:1fr}
 }
+
+
+/* Notificações de pagamentos no painel administrativo */
+.admin-notification-toolbar{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:14px 0 18px;
+}
+.admin-payment-bell{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:46px;
+  height:46px;
+  border:1px solid #385e45;
+  border-radius:50%;
+  background:#09150e;
+  color:#fff;
+  font-size:22px;
+  cursor:pointer;
+}
+.admin-payment-bell.has-pending{
+  border-color:#ffcc4a;
+  box-shadow:0 0 0 4px rgba(255,204,74,.12);
+  animation:fc26BellPulse 1.8s infinite;
+}
+.admin-payment-count{
+  position:absolute;
+  top:-5px;
+  right:-5px;
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  background:#e53935;
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+}
+.admin-payment-alert{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin:12px 0 18px;
+  padding:16px;
+  border:1px solid #d6a62e;
+  border-radius:12px;
+  background:linear-gradient(135deg,#2a1d05,#161006);
+}
+.admin-payment-alert[hidden]{display:none}
+.admin-payment-alert-icon{font-size:30px}
+.admin-payment-alert>div:nth-child(2){flex:1}
+.admin-payment-alert strong{color:#ffd45d}
+.admin-payment-alert p{margin:5px 0 0}
+@keyframes fc26BellPulse{
+  0%,100%{transform:rotate(0deg)}
+  10%{transform:rotate(8deg)}
+  20%{transform:rotate(-8deg)}
+  30%{transform:rotate(5deg)}
+  40%{transform:rotate(-5deg)}
+  50%{transform:rotate(0deg)}
+}
+@media(max-width:700px){
+  .admin-payment-alert{
+    align-items:flex-start;
+    flex-wrap:wrap;
+  }
+  .admin-payment-alert .btn{width:100%;text-align:center}
+}

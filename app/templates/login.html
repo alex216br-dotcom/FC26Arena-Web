@@ -13,7 +13,7 @@
       <input type="hidden" name="return_to" value="{{ return_to }}">
       <div class="field">
         <label>WhatsApp, e-mail ou ID EA</label>
-        <input name="identifier" required autocomplete="username">
+        <input name="identifier" value="{{ identifier or '' }}" required autocomplete="username" autocapitalize="none" spellcheck="false">
       </div>
       <div class="field">
         <label>Senha</label>

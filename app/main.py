@@ -395,6 +395,41 @@ def ctx(request: Request, **kwargs):
         **kwargs,
     }
 
+def normalize_phone(value: str | None) -> str:
+    digits = "".join(character for character in (value or "") if character.isdigit())
+    if digits.startswith("55") and len(digits) in {12, 13}:
+        digits = digits[2:]
+    return digits
+
+
+def find_login_user(db: Session, identifier: str) -> User | None:
+    value = (identifier or "").strip()
+    if not value:
+        return None
+
+    lowered = value.lower()
+    user = db.scalar(
+        select(User).where(
+            or_(
+                func.lower(User.email) == lowered,
+                func.lower(User.ea_id) == lowered,
+            )
+        )
+    )
+    if user:
+        return user
+
+    phone = normalize_phone(value)
+    if phone:
+        # Compatível com números antigos salvos com espaços, parênteses,
+        # hífens ou código do Brasil.
+        for candidate in db.scalars(select(User)).all():
+            if normalize_phone(candidate.whatsapp) == phone:
+                return candidate
+
+    return None
+
+
 def current_user(request: Request, db: Session) -> User | None:
     user_id = request.session.get("user_id")
     return db.get(User, user_id) if user_id else None
@@ -580,7 +615,7 @@ def register(
 
     user = User(
         name=name.strip(),
-        whatsapp=whatsapp.strip(),
+        whatsapp=normalize_phone(whatsapp),
         email=email.strip().lower() if email else None,
         ea_id=ea_id.strip(),
         generation=generation,
@@ -622,7 +657,7 @@ def login_page(request: Request):
     )
     return templates.TemplateResponse(
         "login.html",
-        ctx(request, error=None, return_to=return_to),
+        ctx(request, error=None, return_to=return_to, identifier=""),
     )
 
 
@@ -634,26 +669,43 @@ def login(
     return_to: Annotated[str, Form()] = "/painel",
     db: Session = Depends(get_db),
 ):
-    user = db.scalar(select(User).where(or_(
-        User.whatsapp == identifier.strip(),
-        User.email == identifier.strip().lower(),
-        User.ea_id == identifier.strip(),
-    )))
+    safe_destination = safe_return_path(return_to, "/painel")
+    user = find_login_user(db, identifier)
+
     if not user or not verify_password(password, user.password_hash):
         return templates.TemplateResponse(
             "login.html",
             ctx(
                 request,
-                error="Dados incorretos.",
-                return_to=safe_return_path(return_to, "/painel"),
+                error=(
+                    "Não foi possível entrar. Confira o WhatsApp, e-mail ou ID EA "
+                    "e digite novamente a senha."
+                ),
+                return_to=safe_destination,
+                identifier=identifier.strip(),
             ),
-            status_code=400,
+            status_code=200,
         )
-    request.session["user_id"] = user.id
-    return RedirectResponse(
-        safe_return_path(return_to, "/painel"),
-        303,
-    )
+
+    if not user.active:
+        return templates.TemplateResponse(
+            "login.html",
+            ctx(
+                request,
+                error="Esta conta está desativada. Fale com a administração.",
+                return_to=safe_destination,
+                identifier=identifier.strip(),
+            ),
+            status_code=200,
+        )
+
+    request.session.clear()
+    request.session["user_id"] = int(user.id)
+    request.session["login_version"] = 1
+
+    response = RedirectResponse(safe_destination, 303)
+    return response
+
 @app.get("/sair")
 def logout(request: Request):
     request.session.clear()
@@ -701,7 +753,12 @@ def reset_password(token: str, request: Request, password: Annotated[str, Form()
 
 @app.get("/painel", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
-    user = require_user(request, db)
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse(
+            f"/login?next={quote(str(request.url.path) + ('?' + request.url.query if request.url.query else ''))}",
+            303,
+        )
     registrations = db.scalars(select(Registration).where(Registration.user_id == user.id).order_by(Registration.id.desc())).all()
     team_memberships = db.scalars(select(TeamMember).where(TeamMember.user_id == user.id)).all()
     team_ids = [m.team_id for m in team_memberships]
@@ -1448,6 +1505,44 @@ def admin_login(request: Request, password: Annotated[str, Form()]):
 def admin_logout(request: Request):
     request.session.pop("admin", None)
     return RedirectResponse("/", 303)
+
+
+
+@app.get("/admin/notificacoes/pagamentos")
+def admin_payment_notifications(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+
+    pending_payments = db.scalars(
+        select(Payment)
+        .options(
+            selectinload(Payment.registration).selectinload(Registration.tournament),
+            selectinload(Payment.registration).selectinload(Registration.user),
+            selectinload(Payment.registration).selectinload(Registration.team),
+        )
+        .where(Payment.status == "pending")
+        .order_by(Payment.id.desc())
+        .limit(10)
+    ).all()
+
+    items = []
+    for payment in pending_payments:
+        registration = payment.registration
+        tournament = registration.tournament if registration else None
+        participant = registration_label(registration) if registration else "Participante"
+        items.append({
+            "id": payment.id,
+            "participant": participant,
+            "tournament": tournament.name if tournament else "Campeonato",
+            "amount": float(payment.amount or 0),
+        })
+
+    return {
+        "count": len(pending_payments),
+        "items": items,
+    }
 
 
 @app.get("/admin", response_class=HTMLResponse)
