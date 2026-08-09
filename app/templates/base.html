@@ -5,7 +5,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#020706">
   <title>{% block title %}FC26 Arena{% endblock %}</title>
-  <link rel="stylesheet" href="/static/style.css">
+  
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-N7GB641WC6"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-N7GB641WC6');
+  </script>
+<link rel="stylesheet" href="/static/style.css">
   <script defer src="/static/app.js"></script>
 </head>
 <body data-open-register="{{ '1' if open_register else '0' }}">
