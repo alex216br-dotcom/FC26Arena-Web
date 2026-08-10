@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from typing import Annotated
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
@@ -445,9 +445,42 @@ def require_admin(request: Request):
         raise HTTPException(status_code=303, headers={"Location": "/admin/login"})
 
 
-def admin_redirect(message: str, location: str = "/admin") -> RedirectResponse:
+def append_query_params(location: str, **params) -> str:
+    """Adiciona parâmetros antes do fragmento (#) sem quebrar a URL."""
+    if not location:
+        location = "/"
+
+    fragment = ""
+    if "#" in location:
+        location, fragment_value = location.split("#", 1)
+        fragment = f"#{fragment_value}"
+
+    clean_params = {
+        key: str(value)
+        for key, value in params.items()
+        if value is not None and str(value) != ""
+    }
+    if not clean_params:
+        return location + fragment
+
     separator = "&" if "?" in location else "?"
-    return RedirectResponse(f"{location}{separator}message={quote(str(message))}", 303)
+    query = urlencode(clean_params)
+    return f"{location}{separator}{query}{fragment}"
+
+
+def analytics_location(location: str, event_name: str, **event_params) -> str:
+    payload = {"ga_event": event_name}
+    for key, value in event_params.items():
+        if value is not None:
+            payload[f"ga_{key}"] = value
+    return append_query_params(location, **payload)
+
+
+def admin_redirect(message: str, location: str = "/admin") -> RedirectResponse:
+    return RedirectResponse(
+        append_query_params(location, message=str(message)),
+        303,
+    )
 
 def registration_label(registration: Registration | None) -> str:
     if registration is None:
@@ -645,7 +678,12 @@ def register(
     request.session["user_id"] = user.id
     notify_user(db, user, "Bem-vindo ao FC26 Arena", "Sua conta foi criada com sucesso.")
     return RedirectResponse(
-        safe_return_path(return_to, "/painel?novo=1"),
+        analytics_location(
+            safe_return_path(return_to, "/painel?novo=1"),
+            "cadastro_concluido",
+            method="site",
+            user_id=user.id,
+        ),
         303,
     )
 
@@ -1092,7 +1130,20 @@ def tournament_register(
         db.add(payment)
         db.commit()
         notify_user(db, user, "Pagamento pendente", f"Sua inscrição em {tournament.name} aguarda o pagamento de R$ {amount:.2f}.")
-        return RedirectResponse(f"/pagamento/{payment.id}", 303)
+        return RedirectResponse(
+            analytics_location(
+                f"/pagamento/{payment.id}",
+                "inscricao_campeonato",
+                tournament_id=tournament.id,
+                tournament_name=tournament.name,
+                mode=tournament.mode,
+                registration_id=registration.id,
+                value=f"{amount:.2f}",
+                currency="BRL",
+                payment_required="1",
+            ),
+            303,
+        )
 
     notify_user(
         db,
@@ -1105,7 +1156,17 @@ def tournament_register(
     )
     start_quick_duel_if_ready(db, tournament)
     return RedirectResponse(
-        f"/inscricao/{registration.id}/confirmada",
+        analytics_location(
+            f"/inscricao/{registration.id}/confirmada",
+            "inscricao_campeonato",
+            tournament_id=tournament.id,
+            tournament_name=tournament.name,
+            mode=tournament.mode,
+            registration_id=registration.id,
+            value="0.00",
+            currency="BRL",
+            payment_required="0",
+        ),
         303,
     )
 
@@ -3067,12 +3128,25 @@ def admin_payment(
         ),
     )
 
+    admin_destination = "/admin#pagamentos"
+    if payment.status == "approved":
+        admin_destination = analytics_location(
+            admin_destination,
+            "pagamento_aprovado",
+            payment_id=payment.id,
+            registration_id=registration.id,
+            tournament_id=registration.tournament_id,
+            tournament_name=registration.tournament.name,
+            value=f"{float(payment.amount or 0):.2f}",
+            currency="BRL",
+        )
+
     return admin_redirect(
         (
             f"Pagamento #{payment.id} atualizado para {payment.status}. "
             f"Inscrição #{registration.id}: {registration.status}."
         ),
-        "/admin#pagamentos",
+        admin_destination,
     )
 
 @app.post("/admin/denuncia/{report_id}")

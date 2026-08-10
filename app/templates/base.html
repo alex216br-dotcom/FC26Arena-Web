@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#020706">
   <title>{% block title %}FC26 Arena{% endblock %}</title>
-  
-  <!-- Google tag (gtag.js) -->
+  <link rel="stylesheet" href="/static/style.css">
+  <script defer src="/static/app.js"></script>
+
+  <!-- Google tag (GA4) — FC26 Arena -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-N7GB641WC6"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-
     gtag('config', 'G-N7GB641WC6');
   </script>
-<link rel="stylesheet" href="/static/style.css">
-  <script defer src="/static/app.js"></script>
+
 </head>
 <body data-open-register="{{ '1' if open_register else '0' }}">
   <nav class="nav">
@@ -104,5 +104,59 @@
   {% block content %}{% endblock %}
 
   <footer class="footer">© 2026 FC26 Arena. Todos os direitos reservados.</footer>
+
+<script>
+(function () {
+  function parseValue(value) {
+    if (value === null || value === undefined) return value;
+    if (/^-?\d+(\.\d+)?$/.test(value)) {
+      return Number(value);
+    }
+    return value;
+  }
+
+  window.fc26DispatchAnalyticsEvent = function () {
+    const url = new URL(window.location.href);
+    const eventName = url.searchParams.get("ga_event");
+    if (!eventName || typeof window.gtag !== "function") return;
+
+    const params = {};
+    for (const [key, value] of url.searchParams.entries()) {
+      if (key.startsWith("ga_") && key !== "ga_event") {
+        params[key.substring(3)] = parseValue(value);
+      }
+    }
+
+    const dedupeKey = [
+      eventName,
+      params.registration_id || "",
+      params.payment_id || "",
+      params.user_id || ""
+    ].join(":");
+
+    const alreadySent = sessionStorage.getItem("fc26_ga_" + dedupeKey);
+    if (!alreadySent) {
+      window.gtag("event", eventName, params);
+      sessionStorage.setItem("fc26_ga_" + dedupeKey, "1");
+    }
+
+    // Remove somente os parâmetros internos do Analytics da barra de endereço.
+    const cleanUrl = new URL(window.location.href);
+    [...cleanUrl.searchParams.keys()].forEach((key) => {
+      if (key === "ga_event" || key.startsWith("ga_")) {
+        cleanUrl.searchParams.delete(key);
+      }
+    });
+    history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", window.fc26DispatchAnalyticsEvent);
+  } else {
+    window.fc26DispatchAnalyticsEvent();
+  }
+})();
+</script>
+
 </body>
 </html>

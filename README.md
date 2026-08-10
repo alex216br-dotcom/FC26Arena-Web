@@ -351,3 +351,26 @@ A notificação funciona enquanto o painel administrativo estiver aberto e o adm
 - Hash de senha antigo ou inválido não derruba o login.
 - O painel redireciona para o login quando a sessão não existe, em vez de responder 403.
 - Novos números de WhatsApp passam a ser armazenados apenas com dígitos.
+
+
+## Conversões GA4
+
+Integração configurada com a propriedade GA4 da FC26 Arena (`G-N7GB641WC6`).
+
+Eventos personalizados:
+- `cadastro_concluido`: dispara após uma nova conta ser criada com sucesso;
+- `inscricao_campeonato`: dispara somente após a inscrição ser criada no banco;
+- `pagamento_aprovado`: dispara quando o administrador aprova o pagamento.
+
+Parâmetros úteis enviados quando disponíveis:
+- `tournament_id`
+- `tournament_name`
+- `mode`
+- `registration_id`
+- `payment_id`
+- `value`
+- `currency`
+- `payment_required`
+
+Os parâmetros internos usados no redirecionamento são removidos da URL pelo navegador
+logo após o disparo e não alteram as URLs usadas nos anúncios.
