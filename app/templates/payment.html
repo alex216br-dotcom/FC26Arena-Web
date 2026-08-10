@@ -1,12 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Pagamento — FC26 Arena{% endblock %}
-{% block content %}
-{% if payment.status == 'pending' %}
-  <meta http-equiv="refresh" content="3">
-{% elif payment.status == 'approved' %}
-  <meta http-equiv="refresh" content="2;url=/inscricao/{{ payment.registration.id }}/confirmada">
-{% endif %}
+{% block title %}Pagamento — FC26 Arena
 
+
+{% endblock %}
+{% block content %}
 <section class="container section">
   <div class="payment-card">
     <span class="eyebrow">INSCRIÇÃO #{{ payment.registration.id }}</span>
@@ -30,7 +27,7 @@
         <span class="payment-status-icon payment-pulse">⏳</span>
         <div>
           <strong>Aguardando aprovação</strong>
-          <p>Esta página verifica automaticamente o status a cada 5 segundos.</p>
+          <p>O status é verificado automaticamente sem recarregar esta página.</p>
         </div>
       {% endif %}
     </div>
@@ -45,7 +42,18 @@
       {% if pix_key %}
         <div class="panel pix-panel">
           <p>Chave Pix</p>
-          <strong class="pix-value">{{ pix_key }}</strong>
+          <div class="pix-copy-row">
+            <strong id="pix-key-value" class="pix-value">{{ pix_key }}</strong>
+            <button
+              type="button"
+              id="copy-pix-button"
+              class="btn btn-primary pix-copy-button"
+              data-pix-key="{{ pix_key }}"
+            >
+              📋 Copiar chave Pix
+            </button>
+          </div>
+          <div id="pix-copy-feedback" class="pix-copy-feedback" aria-live="polite"></div>
         </div>
       {% else %}
         <div class="alert">A chave Pix ainda não foi configurada.</div>
@@ -67,4 +75,90 @@
     {% endif %}
   </div>
 </section>
+{% if payment.status == 'pending' %}
+<script>
+(() => {
+  const paymentId = {{ payment.id }};
+  const copyButton = document.getElementById("copy-pix-button");
+  const feedback = document.getElementById("pix-copy-feedback");
+
+  async function copyPixKey() {
+    if (!copyButton) return;
+    const pixKey = copyButton.dataset.pixKey || "";
+    if (!pixKey) return;
+
+    let copied = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(pixKey);
+        copied = true;
+      }
+    } catch (error) {
+      copied = false;
+    }
+
+    if (!copied) {
+      const textarea = document.createElement("textarea");
+      textarea.value = pixKey;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+      try {
+        copied = document.execCommand("copy");
+      } catch (error) {
+        copied = false;
+      }
+      textarea.remove();
+    }
+
+    if (copied) {
+      copyButton.textContent = "✅ Chave copiada!";
+      feedback.textContent = "Agora é só colar a chave no aplicativo do seu banco.";
+      feedback.classList.add("is-success");
+      setTimeout(() => {
+        copyButton.textContent = "📋 Copiar chave Pix";
+      }, 2500);
+    } else {
+      feedback.textContent = "Não foi possível copiar automaticamente. Toque e segure a chave Pix para copiar.";
+      feedback.classList.remove("is-success");
+    }
+  }
+
+  copyButton?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    copyPixKey();
+  });
+
+  async function checkPaymentStatus() {
+    try {
+      const response = await fetch("/pagamento/{{ payment.id }}/status", {
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {"Accept": "application/json"},
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.payment_status === "approved" && data.confirmation_url) {
+        window.location.href = data.confirmation_url;
+      }
+    } catch (error) {
+      console.debug("Não foi possível consultar o pagamento.", error);
+    }
+  }
+
+  setInterval(checkPaymentStatus, 5000);
+})();
+</script>
+{% elif payment.status == 'approved' %}
+<script>
+  setTimeout(() => {
+    window.location.href = "/inscricao/{{ payment.registration.id }}/confirmada";
+  }, 2000);
+</script>
+{% endif %}
+
 {% endblock %}

@@ -374,3 +374,12 @@ Parâmetros úteis enviados quando disponíveis:
 
 Os parâmetros internos usados no redirecionamento são removidos da URL pelo navegador
 logo após o disparo e não alteram as URLs usadas nos anúncios.
+
+
+## Botão para copiar chave Pix
+
+- A chave Pix agora possui botão `Copiar chave Pix`.
+- A página de pagamento não recarrega mais automaticamente enquanto está pendente.
+- O status é consultado em segundo plano a cada 5 segundos.
+- Quando o pagamento é aprovado, o jogador é redirecionado automaticamente.
+- A chave continua selecionável manualmente.

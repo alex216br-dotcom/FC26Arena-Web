@@ -956,3 +956,34 @@ button[disabled]{
   }
   .admin-payment-alert .btn{width:100%;text-align:center}
 }
+
+
+/* Copiar chave Pix sem recarregar a página */
+.pix-copy-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap;
+}
+.pix-copy-row .pix-value{
+  flex:1 1 260px;
+  padding:12px 14px;
+  border:1px solid rgba(62,255,103,.22);
+  border-radius:10px;
+  background:rgba(0,0,0,.22);
+  user-select:text;
+  -webkit-user-select:text;
+}
+.pix-copy-button{flex:0 0 auto;cursor:pointer}
+.pix-copy-feedback{
+  min-height:22px;
+  margin-top:10px;
+  font-size:.92rem;
+  color:var(--muted);
+}
+.pix-copy-feedback.is-success{color:var(--green)}
+@media(max-width:640px){
+  .pix-copy-row{align-items:stretch}
+  .pix-copy-button{width:100%}
+}

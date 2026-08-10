@@ -1213,6 +1213,37 @@ def payment_page(payment_id: int, request: Request, db: Session = Depends(get_db
     response.headers["Pragma"] = "no-cache"
     return response
 
+
+@app.get("/pagamento/{payment_id}/status")
+def payment_status(
+    payment_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = require_user(request, db)
+    payment = db.scalar(
+        select(Payment)
+        .options(
+            selectinload(Payment.registration).selectinload(Registration.tournament),
+            selectinload(Payment.registration).selectinload(Registration.user),
+            selectinload(Payment.registration).selectinload(Registration.team),
+        )
+        .where(Payment.id == payment_id)
+    )
+    if not payment or not registration_contains_user(db, payment.registration, user):
+        raise HTTPException(404)
+
+    return {
+        "payment_status": payment.status,
+        "registration_status": payment.registration.status,
+        "confirmation_url": (
+            f"/inscricao/{payment.registration.id}/confirmada"
+            if payment.status == "approved"
+            else None
+        ),
+    }
+
+
 @app.post("/webhooks/pagamento")
 def payment_webhook(
     external_id: Annotated[str, Form()],
