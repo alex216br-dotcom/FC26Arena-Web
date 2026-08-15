@@ -581,9 +581,15 @@ def home(request: Request, db: Session = Depends(get_db)):
         select(Tournament).where(Tournament.status != "archived").order_by(Tournament.id)
     ).all()
     users_count = db.scalar(select(func.count()).select_from(User))
-    championships_count = db.scalar(select(func.count()).select_from(Tournament))
+    championships_count = db.scalar(
+        select(func.count()).select_from(Tournament).where(Tournament.status != "archived")
+    )
     matches_count = db.scalar(select(func.count()).select_from(Match).where(Match.status == "completed"))
-    prize_total = sum(float(t.prize) for t in tournaments if t.status == "completed")
+    prize_total = float(db.scalar(
+        select(func.coalesce(func.sum(PrizeConversation.amount), 0)).where(
+            PrizeConversation.status == "paid"
+        )
+    ) or 0)
     ranking = db.scalars(select(User).where(User.active == True).order_by(User.xp.desc()).limit(5)).all()
     return templates.TemplateResponse("home.html", ctx(
         request,
