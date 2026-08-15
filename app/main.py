@@ -28,7 +28,7 @@ from .security import hash_password, token_urlsafe, verify_password
 from .services import (
     audit, clear_tournament_matches, entry_name, generate_groups,
     generate_league, pair_quick_duel_waiting_players,
-    process_confirmed_result, registration_users,
+    process_confirmed_result, rebuild_unplayed_knockout, registration_users,
     seed_achievements, sorted_group, unique_slug,
 )
 
@@ -2857,12 +2857,32 @@ def admin_edit_match(
     home_score: Annotated[str, Form()] = "",
     away_score: Annotated[str, Form()] = "",
     status: Annotated[str, Form()] = "scheduled",
+    recalculate: Annotated[str | None, Form()] = None,
     db: Session = Depends(get_db),
 ):
     require_admin(request)
     match = db.get(Match, match_id)
     if not match:
         raise HTTPException(404)
+    # A correção com recálculo só pode apagar um mata-mata ainda não jogado.
+    if recalculate and match.phase == "group":
+        knockout_matches = db.scalars(select(Match).where(
+            Match.tournament_id == match.tournament_id,
+            Match.phase == "knockout",
+        )).all()
+        if any(
+            item.status == "completed"
+            or item.result_confirmed
+            or item.home_score is not None
+            or item.away_score is not None
+            for item in knockout_matches
+        ):
+            return admin_redirect(
+                "Não foi possível recalcular: o mata-mata já possui partida com resultado. "
+                "A correção foi bloqueada para não apagar jogos já realizados.",
+                f"/admin/campeonato/{match.tournament_id}",
+            )
+
     match.scheduled_for = scheduled_for.strip() or "A definir"
     match.status = status
     parsed_home = int(home_score) if home_score.strip() else None
@@ -2875,9 +2895,25 @@ def admin_edit_match(
         if status == "completed":
             match.result_confirmed = True
     db.commit()
+
+    removed_knockout = 0
+    if recalculate and match.phase == "group":
+        try:
+            removed_knockout = rebuild_unplayed_knockout(db, match.tournament)
+            db.refresh(match)
+        except ValueError as exc:
+            db.rollback()
+            return admin_redirect(str(exc), f"/admin/campeonato/{match.tournament_id}")
+
     if status == "completed" and match.home_score is not None and match.away_score is not None:
         process_confirmed_result(db, match)
-    audit(db, "edit_match", "match", match.id, status)
+
+    audit(db, "edit_match", "match", match.id, f"{status}; recalculate={bool(recalculate)}")
+    if recalculate:
+        message = "Resultado corrigido. Classificação recalculada e mata-mata atualizado automaticamente."
+        if removed_knockout:
+            message += f" {removed_knockout} confronto(s) futuro(s) foram recriados."
+        return admin_redirect(message, f"/admin/campeonato/{match.tournament_id}")
     return admin_redirect("Partida atualizada.", f"/admin/campeonato/{match.tournament_id}")
 
 

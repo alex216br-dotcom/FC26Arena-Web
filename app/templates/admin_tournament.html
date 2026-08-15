@@ -368,6 +368,15 @@
               <td>
                 <form id="match-form-{{ m.id }}" method="post" action="/admin/partida/{{ m.id }}/editar">
                   <button type="submit" class="btn btn-small">Salvar partida</button>
+                  {% if m.phase == 'group' %}
+                    <button
+                      type="submit"
+                      class="btn btn-small"
+                      name="recalculate"
+                      value="1"
+                      onclick="return confirm('Corrigir este resultado e recalcular a classificação e o mata-mata? Confrontos futuros ainda não jogados serão recriados.');"
+                    >🔄 Corrigir e recalcular</button>
+                  {% endif %}
                 </form>
               </td>
             </tr>

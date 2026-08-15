@@ -591,6 +591,68 @@ def groups_finished(db: Session, tournament_id: int) -> bool:
     )).all()
     return bool(matches) and all(m.status == "completed" and m.result_confirmed for m in matches)
 
+def rebuild_unplayed_knockout(db: Session, tournament: Tournament):
+    """
+    Remove apenas o mata-mata ainda não jogado para que ele possa ser
+    recriado a partir da classificação corrigida da fase de grupos.
+
+    Retorna a quantidade de partidas removidas. Se alguma partida de
+    mata-mata já tiver placar/resultado, a correção é bloqueada para não
+    apagar resultados válidos.
+    """
+    knockout_matches = db.scalars(select(Match).where(
+        Match.tournament_id == tournament.id,
+        Match.phase == "knockout",
+    )).all()
+
+    if not knockout_matches:
+        reset_registration_stats(db, tournament.id)
+        tournament.status = "group_stage"
+        db.commit()
+        return 0
+
+    already_played = any(
+        m.status == "completed"
+        or m.result_confirmed
+        or m.home_score is not None
+        or m.away_score is not None
+        for m in knockout_matches
+    )
+    if already_played:
+        raise ValueError(
+            "O mata-mata já possui partida com resultado. "
+            "A correção automática foi bloqueada para não apagar resultados já jogados."
+        )
+
+    match_ids = [m.id for m in knockout_matches]
+
+    # Remove dependências das Salas PVP antes de recriar os confrontos.
+    db.query(MatchMessage).filter(
+        MatchMessage.match_id.in_(match_ids)
+    ).delete(synchronize_session=False)
+    db.query(Evidence).filter(
+        Evidence.match_id.in_(match_ids)
+    ).delete(synchronize_session=False)
+    db.query(Report).filter(
+        Report.match_id.in_(match_ids)
+    ).delete(synchronize_session=False)
+
+    # Por segurança, uma conversa de prêmio nunca deve apontar para uma
+    # partida futura que será recriada.
+    db.query(PrizeConversation).filter(
+        PrizeConversation.match_id.in_(match_ids)
+    ).update({PrizeConversation.match_id: None}, synchronize_session=False)
+
+    db.query(Match).filter(
+        Match.id.in_(match_ids)
+    ).delete(synchronize_session=False)
+
+    reset_registration_stats(db, tournament.id)
+    tournament.status = "group_stage"
+    db.commit()
+    return len(match_ids)
+
+
 def generate_knockout(db: Session, tournament: Tournament):
     existing = db.scalar(select(Match).where(
         Match.tournament_id == tournament.id,
