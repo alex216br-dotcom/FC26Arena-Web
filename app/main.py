@@ -2871,7 +2871,7 @@ def admin_new_tournament_edition(
             registration_fee=tournament.registration_fee,
             prize=tournament.prize,
             status="open",
-            starts_at="A definir",
+            starts_at=tournament.starts_at,
             rules=tournament.rules,
             color_theme=tournament.color_theme,
         )
