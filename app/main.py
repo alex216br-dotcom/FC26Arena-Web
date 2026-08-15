@@ -2821,6 +2821,86 @@ def admin_remove_registration(
         ),
         f"/admin/campeonato/{tournament_id}",
     )
+@app.post("/admin/campeonato/{tournament_id}/nova-edicao")
+def admin_new_tournament_edition(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    tournament = db.get(Tournament, tournament_id)
+    if not tournament:
+        raise HTTPException(404)
+
+    if tournament.status != "completed":
+        return admin_redirect(
+            "A nova edição só pode ser iniciada depois que o campeonato estiver concluído.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+
+    try:
+        # A edição encerrada continua intacta: inscrições, partidas, resultados,
+        # PVP e premiações permanecem ligados ao campeonato antigo.
+        original_slug = tournament.slug
+        archived_slug = f"{original_slug}-edicao-{tournament.id}"
+        suffix = 1
+        while db.scalar(select(Tournament.id).where(Tournament.slug == archived_slug)):
+            suffix += 1
+            archived_slug = f"{original_slug}-edicao-{tournament.id}-{suffix}"
+        tournament.slug = archived_slug
+        db.flush()
+
+        new_tournament = Tournament(
+            season_id=tournament.season_id,
+            name=tournament.name,
+            slug=original_slug,
+            mode=tournament.mode,
+            competition_format=tournament.competition_format,
+            league_turns=tournament.league_turns,
+            quick_duel=tournament.quick_duel,
+            duel_series=tournament.duel_series,
+            match_minutes=tournament.match_minutes,
+            squad_type=tournament.squad_type,
+            allow_classic_teams=tournament.allow_classic_teams,
+            allow_national_teams=tournament.allow_national_teams,
+            knockout_extra_time=tournament.knockout_extra_time,
+            require_result_confirmation=tournament.require_result_confirmation,
+            generation=tournament.generation,
+            max_entries=tournament.max_entries,
+            group_size=tournament.group_size,
+            registration_fee=tournament.registration_fee,
+            prize=tournament.prize,
+            status="open",
+            starts_at="A definir",
+            rules=tournament.rules,
+            color_theme=tournament.color_theme,
+        )
+        db.add(new_tournament)
+        db.flush()
+
+        old_prizes = db.scalars(
+            select(TournamentPrize).where(TournamentPrize.tournament_id == tournament.id)
+        ).all()
+        for prize in old_prizes:
+            db.add(TournamentPrize(
+                tournament_id=new_tournament.id,
+                place=prize.place,
+                amount=prize.amount,
+            ))
+
+        db.commit()
+        audit(db, "new_edition", "tournament", new_tournament.id, f"Nova edição de {tournament.name}")
+        return admin_redirect(
+            "Nova edição iniciada. Inscrições zeradas e edição anterior preservada no histórico.",
+            f"/admin/campeonato/{new_tournament.id}",
+        )
+    except Exception as exc:
+        db.rollback()
+        return admin_redirect(
+            f"Não foi possível iniciar a nova edição: {exc}",
+            f"/admin/campeonato/{tournament_id}",
+        )
+
 @app.post("/admin/campeonato/{tournament_id}/limpar-sorteio")
 def admin_clear_draw(
     tournament_id: int,

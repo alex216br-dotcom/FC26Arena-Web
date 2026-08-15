@@ -273,6 +273,15 @@
             {{ '🗑️ Limpar tabela' if tournament.competition_format == 'league' else '🗑️ Limpar sorteio' }}
           </button>
         </form>
+
+        {% if tournament.status == 'completed' %}
+          <form method="post" action="/admin/campeonato/{{ tournament.id }}/nova-edicao"
+                onsubmit="return confirm('Iniciar uma nova edição deste campeonato? A edição encerrada, seus resultados, partidas, PVP e premiações serão preservados. A nova edição começará sem inscritos. Continuar?')">
+            <button type="submit" class="btn btn-primary">
+              🔄 Iniciar nova edição
+            </button>
+          </form>
+        {% endif %}
       </div>
     </section>
 
