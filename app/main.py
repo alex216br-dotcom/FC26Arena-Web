@@ -2855,6 +2855,98 @@ def admin_remove_registration(
         ),
         f"/admin/campeonato/{tournament_id}",
     )
+@app.post("/admin/campeonato/{tournament_id}/excluir")
+def admin_delete_duplicate_tournament(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Exclui definitivamente campeonatos duplicados/criados por engano.
+
+    Por segurança, edições concluídas, campeonatos com resultados confirmados
+    ou com premiação gerada não podem ser apagados por este botão.
+    Contas, equipes, títulos e estatísticas globais dos jogadores nunca são
+    removidos aqui.
+    """
+    require_admin(request)
+    tournament = db.get(Tournament, tournament_id)
+    if not tournament:
+        raise HTTPException(404)
+
+    if tournament.status in ("completed", "archived"):
+        return admin_redirect(
+            "Campeonatos concluídos não podem ser excluídos como duplicados. Use a opção de arquivar/remover da lista para preservar o histórico e o campeão.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+
+    confirmed_match = db.scalar(
+        select(Match.id).where(
+            Match.tournament_id == tournament.id,
+            Match.status == "completed",
+            Match.result_confirmed == True,
+        )
+    )
+    if confirmed_match:
+        return admin_redirect(
+            "Este campeonato já possui resultado confirmado e não será excluído para proteger o histórico e os pontos dos jogadores.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+
+    prize_conversation = db.scalar(
+        select(PrizeConversation.id).where(
+            PrizeConversation.tournament_id == tournament.id
+        )
+    )
+    if prize_conversation:
+        return admin_redirect(
+            "Este campeonato possui premiação vinculada e não pode ser excluído como duplicado.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+
+    label = tournament.name
+    try:
+        # Remove somente dados pertencentes à duplicata, respeitando as FKs.
+        clear_tournament_matches(db, tournament.id)
+
+        registration_ids = list(db.scalars(
+            select(Registration.id).where(
+                Registration.tournament_id == tournament.id
+            )
+        ).all())
+        if registration_ids:
+            db.query(Payment).filter(
+                Payment.registration_id.in_(registration_ids)
+            ).delete(synchronize_session=False)
+            db.query(Registration).filter(
+                Registration.id.in_(registration_ids)
+            ).delete(synchronize_session=False)
+
+        db.query(TournamentPrize).filter(
+            TournamentPrize.tournament_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        db.delete(tournament)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        return admin_redirect(
+            f"Não foi possível excluir o campeonato: {exc}",
+            f"/admin/campeonato/{tournament_id}",
+        )
+
+    audit(
+        db,
+        "delete_duplicate_tournament",
+        "tournament",
+        tournament_id,
+        f"Campeonato duplicado excluído: {label}",
+    )
+    return admin_redirect(
+        f"Campeonato duplicado '{label}' excluído. As contas e os dados gerais dos jogadores foram mantidos.",
+        "/admin",
+    )
+
+
 @app.post("/admin/campeonato/{tournament_id}/excluir-concluido")
 def admin_archive_completed_tournament(
     tournament_id: int,

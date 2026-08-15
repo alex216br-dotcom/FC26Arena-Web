@@ -274,6 +274,15 @@
           </button>
         </form>
 
+        {% if tournament.status not in ['completed', 'archived'] %}
+          <form method="post" action="/admin/campeonato/{{ tournament.id }}/excluir"
+                onsubmit="return confirm('⚠️ EXCLUIR DEFINITIVAMENTE este campeonato? Use esta opção somente para campeonatos duplicados ou criados por engano. Inscrições, pagamentos e partidas não confirmadas desta duplicata serão apagados. As contas dos jogadores não serão excluídas. Esta ação não pode ser desfeita. Continuar?')">
+            <button type="submit" class="btn btn-danger">
+              🗑️ Excluir campeonato duplicado
+            </button>
+          </form>
+        {% endif %}
+
         {% if tournament.status == 'completed' %}
           <form method="post" action="/admin/campeonato/{{ tournament.id }}/nova-edicao"
                 onsubmit="return confirm('Iniciar uma nova edição deste campeonato? A edição encerrada, seus resultados, partidas, PVP e premiações serão preservados. A nova edição começará sem inscritos. Continuar?')">
