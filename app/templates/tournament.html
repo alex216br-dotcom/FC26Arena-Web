@@ -145,6 +145,16 @@
       {% endif %}
     </div>
 
+    {% if last_champion_name %}
+    <div class="panel last-champion-panel">
+      <div style="text-align:center;padding:8px 0">
+        <div style="font-size:13px;color:#ffe45b;font-weight:900;letter-spacing:1px">🏆 ÚLTIMO CAMPEÃO</div>
+        <div style="font-size:24px;font-weight:1000;margin-top:6px">{{ last_champion_name }}</div>
+        <div class="muted" style="margin-top:4px">Campeão da edição anterior</div>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="panel">
       <h2>Participantes</h2>
       <div class="participant-list">

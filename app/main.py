@@ -891,6 +891,39 @@ def tournament_page(
 
     prize_awards = tournament_prize_awards(db, tournament)
 
+    # Último campeão de uma edição anterior do mesmo campeonato.
+    # A edição antiga pode estar concluída ou arquivada; os dados do jogador
+    # permanecem intactos no banco.
+    last_champion_name = None
+    previous_tournaments = db.scalars(
+        select(Tournament)
+        .where(
+            Tournament.name == tournament.name,
+            Tournament.id != tournament.id,
+            Tournament.id < tournament.id,
+            Tournament.status.in_(["completed", "archived"]),
+        )
+        .order_by(Tournament.id.desc())
+    ).all()
+    for previous in previous_tournaments:
+        prize_conversation = db.scalar(
+            select(PrizeConversation)
+            .where(PrizeConversation.tournament_id == previous.id)
+            .order_by(PrizeConversation.id.asc())
+        )
+        if prize_conversation:
+            champion_registration = db.scalar(
+                select(Registration)
+                .options(
+                    selectinload(Registration.user),
+                    selectinload(Registration.team),
+                )
+                .where(Registration.id == prize_conversation.registration_id)
+            )
+            if champion_registration:
+                last_champion_name = entry_name(champion_registration)
+                break
+
     matches = db.scalars(
         select(Match)
         .options(
@@ -929,6 +962,7 @@ def tournament_page(
             matches=matches,
             accessible_match_ids=accessible_match_ids,
             rules_display=tournament_display_rules(tournament),
+            last_champion_name=last_champion_name,
         ),
     )
 
@@ -2821,6 +2855,41 @@ def admin_remove_registration(
         ),
         f"/admin/campeonato/{tournament_id}",
     )
+@app.post("/admin/campeonato/{tournament_id}/excluir-concluido")
+def admin_archive_completed_tournament(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    tournament = db.get(Tournament, tournament_id)
+    if not tournament:
+        raise HTTPException(404)
+
+    if tournament.status != "completed":
+        return admin_redirect(
+            "Somente campeonatos concluídos podem ser removidos do painel.",
+            f"/admin/campeonato/{tournament_id}",
+        )
+
+    # Exclusão segura (soft delete): apenas arquiva a edição.
+    # Pontos, títulos, campeão, inscrições, partidas, PVP e premiações
+    # continuam no banco e não são apagados.
+    tournament.status = "archived"
+    db.commit()
+    audit(
+        db,
+        "archive_completed_tournament",
+        "tournament",
+        tournament.id,
+        f"Edição concluída arquivada: {tournament.name}",
+    )
+    return admin_redirect(
+        "Campeonato concluído removido da lista. Histórico, campeão e dados dos jogadores foram preservados.",
+        "/admin",
+    )
+
+
 @app.post("/admin/campeonato/{tournament_id}/nova-edicao")
 def admin_new_tournament_edition(
     tournament_id: int,

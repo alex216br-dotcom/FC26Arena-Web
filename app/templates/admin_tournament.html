@@ -281,6 +281,12 @@
               🔄 Iniciar nova edição
             </button>
           </form>
+          <form method="post" action="/admin/campeonato/{{ tournament.id }}/excluir-concluido"
+                onsubmit="return confirm('Remover este campeonato concluído da lista? O histórico, campeão, pontos, títulos, jogadores, partidas e premiações serão preservados no banco. Continuar?')">
+            <button type="submit" class="btn btn-danger">
+              🗑️ Excluir campeonato concluído
+            </button>
+          </form>
         {% endif %}
       </div>
     </section>
